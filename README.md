@@ -1,128 +1,133 @@
-# 🃏 Texas Hold'em Poker Chip Simulator
+# Texas Hold'em Poker Chip Simulator
 
-Aplikasi **Virtual Chip Manager & Table Simulator** untuk permainan Texas Hold'em Poker menggunakan **Flutter**. Dirancang khusus untuk sesi bermain santai (*casual home games*) bersama teman menggunakan kartu fisik asli di dunia nyata—tanpa perlu repot membawa kepingan chip fisik dan tanpa unsur judi uang sungguhan.
-
----
-
-## 📱 Skenario Penggunaan (*Shared Table Mode*)
-Letakkan smartphone atau tablet Anda secara mendatar di tengah meja kopi/meja makan. Layar aplikasi berfungsi sebagai **meja felt dan baki chip digital**, di mana setiap pemain dapat melihat pot, ronde aktif, serta menekan tombol taruhannya masing-masing saat gilirannya tiba.
+A virtual chip manager and table simulator for Texas Hold'em poker built with Flutter. Designed specifically for casual, in-person home games with physical playing cards, eliminating the need for physical chip sets while maintaining zero real-money gambling mechanics.
 
 ---
 
-## ✨ Fitur Utama
+## Overview
 
-### 1. ⚙️ Setup Fleksibel (2–8 Pemain)
-- **Kapasitas**: Mendukung 2 hingga 8 pemain dengan penataan kursi melingkar otomatis.
-- **Kustomisasi**: Nama pemain dapat disesuaikan dengan nama teman asli.
-- **Modal Awal**: Pilihan cepat saldo chip awal (500, 1.000, 2.000, 5.000 chip).
-- **Struktur Blinds**: Opsi mengaktifkan Small Blind (SB) dan Big Blind (BB) otomatis, atau bermain santai tanpa blinds.
-
-### 2. 🎮 Logika Taruhan Resmi Texas Hold'em
-- **Rotasi Dealer Button (`D`)**: Posisi Dealer, SB, dan BB otomatis bergeser searah jarum jam setiap hand baru.
-- **Aksi Pemain Lengkap**:
-  - **CHECK**: Hanya tersedia jika tidak ada kenaikan taruhan meja.
-  - **CALL [X]**: Menyamakan nominal taruhan tertinggi saat ini.
-  - **RAISE...**: Modal slider 2-kolom landscape dengan shortcut cepat (`Min`, `2x`, `3x`, `½ Pot`, `Full Pot`, `All-in`).
-  - **FOLD**: Menyerah (jika tersisa 1 pemain aktif, pot otomatis diserahkan ke pemain tersebut).
-  - **ALL-IN**: Mempertaruhkan seluruh sisa chip.
-- **Transisi Ronde (Streets)**:
-  - **Pre-Flop** $\rightarrow$ **Flop** (3 kartu meja) $\rightarrow$ **Turn** (kartu ke-4) $\rightarrow$ **River** (kartu ke-5) $\rightarrow$ **Showdown**.
-- **Kalkulasi Pot & Side Pot**: Menghitung *Main Pot* dan *Side Pot* secara otomatis jika ada pemain yang All-in dengan chip lebih sedikit.
-
-### 3. 🏆 Showdown & Pembagian Chip
-- Pemilihan pemenang kartu terbaik yang intuitif di akhir ronde.
-- Mendukung **Split Pot** jika terdapat lebih dari satu pemain dengan kombinasi kartu bernilai seri.
-- Tombol **"Next Hand"** untuk langsung memutar posisi tombol Dealer dan memotong blinds untuk ronde selanjutnya.
-
-### 4. 💎 Desain Visual & Kenyamanan (UX)
-- **Fullscreen Immersive (`SystemUiMode.immersiveSticky`)**: Status bar dan bilah navigasi disembunyikan agar layar 100% penuh untuk meja poker.
-- **Floating HUD (Tanpa Navbar Memotong Meja)**:
-  - Meja felt hijau zamrud mengisi 100% layar landscape.
-  - Kapsul info blinds dan tombol menu mengambang transparan di sudut atas.
-  - Action bar mengambang ramping (*floating dock*) di bagian bawah layar.
-- **Optimasi Posisi 2 Pemain (Heads-Up)**: Kedua pemain ditempatkan di sisi Kiri dan Kanan yang saling berhadapan, bebas dari tumpukan vertikal.
-- **Rebuy / Top-up Chip**: Menambah chip pemain yang kehabisan saldo tanpa harus mereset game.
-- **Log Riwayat Aksi**: Catatan lengkap setiap aksi taruhan di meja.
+### Shared Table Mode
+Place a smartphone or tablet flat in the center of the table. The application acts as a shared digital felt and chip tray, allowing each player around the physical table to track pot sizes, view current betting streets, and execute betting actions on their respective turns.
 
 ---
 
-## 🛠️ Struktur Proyek
+## Key Features
+
+### 1. Flexible Table Setup (2–8 Players)
+- **Player Capacity**: Supports 2 to 8 players with balanced perimeter seat positioning.
+- **Customization**: Customizable player names to match real-life participants.
+- **Starting Stack**: Presets for starting chip counts (500, 1,000, 2,000, 5,000 chips) or custom amounts.
+- **Blind Structure**: Configurable Small Blind (SB) and Big Blind (BB) automation, with an option for casual play without forced blinds.
+
+### 2. Standard Texas Hold'em Betting Engine
+- **Dealer Button Rotation**: Automatic clockwise progression of the Dealer (`D`), Small Blind (`SB`), and Big Blind (`BB`) positions each hand.
+- **Betting Actions**:
+  - **Check**: Validated only when no bet increase has occurred in the active street.
+  - **Call**: Matches the current table bet, displaying the exact chip deduction.
+  - **Raise**: Two-column landscape dialog featuring a responsive slider, steppers, and quick presets (Min Raise, 2x, 3x, Half Pot, Full Pot, All-in).
+  - **Fold**: Forfeits the current hand (automatically awards the pot if only one player remains).
+  - **All-In**: Commits all remaining player chips to the pot.
+- **Street Progression**: Automatic phase transitions from Pre-Flop to Flop (3 community cards), Turn (4th card), River (5th card), and Showdown.
+- **Dynamic Pot & Side Pot Engine**: Calculates main pots and side pots accurately when players commit all-in bets at varying stack depths.
+
+### 3. Showdown & Pot Distribution
+- Intuitive winner selection interface for main pots and all generated side pots.
+- Supports split-pot distribution for tied hand evaluations.
+- Single-tap "Next Hand" action to automatically rotate the dealer button, post blinds, and initiate the next round.
+
+### 4. Landscape Interface & User Experience
+- **Fullscreen Immersive Mode**: Uses `SystemUiMode.immersiveSticky` to hide status and system navigation bars, maximizing active display area.
+- **Floating HUD Layout**:
+  - Unbroken 100% table felt coverage across the landscape screen.
+  - Floating status capsules in upper corners for blinds and table management.
+  - Slim floating action dock positioned at the bottom edge.
+- **Optimized Heads-Up Alignment**: For two-player games, seats are positioned on the far left and far right to prevent vertical crowding.
+- **Mid-Session Rebuy**: Allows eliminated or low-stack players to top up chips without restarting the table.
+- **Action History Audit**: Comprehensive log of all bets, raises, folds, and blind posts throughout the session.
+
+---
+
+## Project Structure
 
 ```
 lib/
-├── app.dart                                # Root MaterialApp & routing
-├── main.dart                               # Entry point, Fullscreen & Landscape config
+├── app.dart                                # Root MaterialApp configuration & theme setup
+├── main.dart                               # Entry point, orientation lock, & immersive mode
 ├── controllers/
-│   └── poker_game_controller.dart          # Engine logika Texas Hold'em & State Manager
+│   └── poker_game_controller.dart          # Core Texas Hold'em rules engine & state management
 ├── core/
 │   ├── constants/
-│   │   └── app_colors.dart                 # Palet warna poker (felt, chip, actions)
+│   │   └── app_colors.dart                 # Poker theme palette (table felt, chips, actions)
 │   └── theme/
-│       └── app_theme.dart                  # Konfigurasi ThemeData Material 3
+│       └── app_theme.dart                  # Material 3 dark theme definitions
 ├── models/
-│   ├── poker_player.dart                   # Model data pemain & status
-│   └── poker_game_state.dart               # Enum BettingStreet, Pot, ActionLog
+│   ├── poker_player.dart                   # Player entity, stack values, and status tracking
+│   └── poker_game_state.dart               # Betting streets, pot entities, and action log models
 └── screens/
     └── poker/
-        ├── setup_screen.dart               # Layar konfigurasi awal game
-        ├── table_screen.dart               # Layar meja poker landscape utama
+        ├── setup_screen.dart               # Table setup and player configuration view
+        ├── table_screen.dart               # Main landscape table and seating interface
         └── widgets/
-            ├── player_seat_widget.dart     # Kartu kursi pemain & badge
-            ├── table_center_widget.dart    # Tampilan pot, street, CTA showdown
-            ├── poker_action_bar.dart       # Floating action dock pemain
-            ├── raise_dialog.dart           # Modal raise 2-kolom landscape
-            ├── showdown_dialog.dart        # Dialog penyerahan pot ke pemenang
-            ├── rebuy_dialog.dart           # Dialog top-up saldo chip
-            └── action_history_sheet.dart   # Lembar riwayat aksi taruhan meja
+            ├── player_seat_widget.dart     # Player seat badge and stack card
+            ├── table_center_widget.dart    # Center pot display, street indicator, and hand controls
+            ├── poker_action_bar.dart       # Floating player action dock
+            ├── raise_dialog.dart           # Two-column landscape raise slider modal
+            ├── showdown_dialog.dart        # Winner selection and pot distribution dialog
+            ├── rebuy_dialog.dart           # Stack top-up modal
+            └── action_history_sheet.dart   # Hand history audit sheet
 ```
 
 ---
 
-## 🚀 Cara Menjalankan Aplikasi
+## Getting Started
 
-### Persyaratan
-- [Flutter SDK](https://flutter.dev) (v3.13 ke atas)
-- Android / iOS Device atau Emulator
+### Prerequisites
+- Flutter SDK (v3.13.0 or higher)
+- Android / iOS Device or Emulator, or modern Web Browser
 
-### Menjalankan dalam Mode Debug
+### Running in Development
 ```bash
 flutter pub get
 flutter run
 ```
 
-### Menjalankan dalam Mode Release (Bebas Lepas Kabel USB)
-Untuk performa maksimal dan penggunaan permanen di HP tanpa terhubung ke komputer:
+### Running in Standalone Release Mode (Android)
+To run fully optimized without an active USB debugging connection:
 ```bash
 flutter run --release
 ```
 
-### Build File APK (Android)
+### Building the Android APK
 ```bash
 flutter build apk --split-per-abi
 ```
-File APK siap dipasang akan berada di: `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`.
+Generated binaries will be located at:
+`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
 
-### Deploy ke GitHub Pages (Web)
-Proyek ini sudah dilengkapi file workflow otomatis di `.github/workflows/deploy.yml`:
-1. Di repository GitHub Anda, buka **Settings** $\rightarrow$ **Pages**.
-2. Pada opsi **Build and deployment** > **Source**, pilih **GitHub Actions**.
-3. Setiap kali Anda melakukan `git push` ke branch `main`, aplikasi web akan otomatis di-build dan di-deploy ke alamat:
+### Automated Deployment to GitHub Pages
+This repository includes an automated GitHub Actions deployment workflow in `.github/workflows/deploy.yml`.
+
+To deploy:
+1. In your GitHub repository, navigate to **Settings** > **Pages**.
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+3. Pushing commits to the `main` branch will automatically compile Flutter Web and publish the application to:
    `https://adyasena.github.io/belajar_flutter/`
 
 ---
 
-## 🧪 Pengujian (Tests)
+## Verification and Testing
 
-Proyek ini dilengkapi dengan unit test logika engine poker dan widget smoke test:
+Execute the unit and widget test suite:
 ```bash
 flutter test
 ```
-Verifikasi kepatuhan linter:
+
+Perform static analysis:
 ```bash
 flutter analyze
 ```
 
 ---
 
-## 📄 Lisensi
-Proyek ini dibuat untuk tujuan edukasi dan hiburan santai tanpa unsur perjudian uang asli. Bebas dimodifikasi untuk penggunaan pribadi.
+## License
+This project is open-source and intended solely for recreational home use and educational purposes. No real-money gambling or wagering services are provided.
