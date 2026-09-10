@@ -4,8 +4,13 @@ import 'package:poker_local_game/screens/poker/widgets/casino_card_widget.dart';
 
 class CommunityCardsWidget extends StatelessWidget {
   final List<PlayingCard> cards;
+  final List<PlayingCard> winningCards;
 
-  const CommunityCardsWidget({super.key, required this.cards});
+  const CommunityCardsWidget({
+    super.key,
+    required this.cards,
+    this.winningCards = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +35,7 @@ class CommunityCardsWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: List.generate(5, (index) {
           final card = index < cards.length ? cards[index] : null;
+          final isWin = card != null && winningCards.contains(card);
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
             child: CasinoCardWidget(
@@ -37,6 +43,7 @@ class CommunityCardsWidget extends StatelessWidget {
               isFaceUp: card != null,
               width: 38,
               height: 54,
+              isWinningCard: isWin,
             ),
           );
         }),

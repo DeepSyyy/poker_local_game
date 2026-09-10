@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:poker_local_game/screens/poker/setup_screen.dart';
+import 'package:poker_local_game/screens/poker/widgets/qr_connect_dialog.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:poker_local_game/core/constants/app_colors.dart';
 import 'package:poker_local_game/controllers/poker_game_controller.dart';
@@ -14,8 +16,8 @@ import 'package:poker_local_game/screens/poker/widgets/rebuy_dialog.dart';
 import 'package:poker_local_game/screens/poker/widgets/action_history_sheet.dart';
 import 'package:poker_local_game/models/poker_player.dart';
 import 'package:poker_local_game/screens/poker/widgets/card_picker_dialog.dart';
-import 'package:poker_local_game/screens/poker/widgets/qr_connect_dialog.dart';
-import 'package:poker_local_game/screens/poker/setup_screen.dart';
+import 'package:poker_local_game/screens/poker/widgets/winner_dialog.dart';
+import 'package:poker_local_game/models/playing_card.dart';
 
 class TableScreen extends StatefulWidget {
   final PokerGameController controller;
@@ -28,6 +30,7 @@ class TableScreen extends StatefulWidget {
 
 class _TableScreenState extends State<TableScreen> {
   PokerGameController get _c => widget.controller;
+  BettingStreet? _previousStreet;
 
   @override
   void initState() {
@@ -42,7 +45,61 @@ class _TableScreenState extends State<TableScreen> {
   }
 
   void _onControllerUpdate() {
+    final currentStreet = _c.street;
+    if (currentStreet == BettingStreet.handEnded &&
+        _previousStreet != BettingStreet.handEnded) {
+      _showWinnerDialog();
+    }
+    _previousStreet = currentStreet;
     setState(() {});
+  }
+
+  void _showWinnerDialog() {
+    final activePlayers = _c.players
+        .where((p) => p.status != PlayerStatus.out)
+        .toList();
+    if (activePlayers.isEmpty) return;
+
+    final inHand = activePlayers
+        .where((p) => p.status != PlayerStatus.folded)
+        .toList();
+
+    List<PokerPlayer> winners = [];
+    String? handDesc;
+
+    if (inHand.length == 1) {
+      winners = [inHand.first];
+      handDesc = 'Pemain Lain Fold';
+    } else if (inHand.isNotEmpty) {
+      inHand.sort((a, b) {
+        if (a.evaluation == null && b.evaluation == null) return 0;
+        if (a.evaluation == null) return 1;
+        if (b.evaluation == null) return -1;
+        return b.evaluation!.compareTo(a.evaluation!);
+      });
+      final topEval = inHand.first.evaluation;
+      if (topEval != null) {
+        winners = inHand
+            .where((p) => p.evaluation?.compareTo(topEval) == 0)
+            .toList();
+        handDesc = topEval.description;
+      } else {
+        winners = [inHand.first];
+      }
+    }
+
+    if (winners.isNotEmpty && mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => WinnerDialog(
+          winners: winners,
+          potAmount: _c.pot,
+          handDescription: handDesc,
+          autoDismissSeconds: 3,
+        ),
+      );
+    }
   }
 
   void _openRaiseDialog() {
@@ -249,16 +306,40 @@ class _TableScreenState extends State<TableScreen> {
                 // Center Table Info (Pot, Street, Community Cards, Next Hand CTA or Lobby UI)
                 if (_c.street == BettingStreet.lobby)
                   _buildLobbyCenterWidget()
-                else
-                  TableCenterWidget(
-                    pot: _c.pot,
-                    pots: _c.pots,
-                    street: _c.street,
-                    currentBet: _c.currentBet,
-                    communityCards: _c.communityCards,
-                    onShowdownTap: _openShowdownDialog,
-                    onNextHandTap: _c.startNewHand,
+                else ...[
+                  Builder(
+                    builder: (context) {
+                      List<PlayingCard> winningCards = [];
+                      if (_c.street == BettingStreet.showdown ||
+                          _c.street == BettingStreet.handEnded) {
+                        final inHand = _c.players
+                            .where(
+                              (p) =>
+                                  p.status != PlayerStatus.folded &&
+                                  p.evaluation != null,
+                            )
+                            .toList();
+                        if (inHand.isNotEmpty) {
+                          inHand.sort(
+                            (a, b) => b.evaluation!.compareTo(a.evaluation!),
+                          );
+                          winningCards = inHand.first.evaluation!.bestFiveCards;
+                        }
+                      }
+
+                      return TableCenterWidget(
+                        pot: _c.pot,
+                        pots: _c.pots,
+                        street: _c.street,
+                        currentBet: _c.currentBet,
+                        communityCards: _c.communityCards,
+                        winningCards: winningCards,
+                        onShowdownTap: _openShowdownDialog,
+                        onNextHandTap: _c.startNewHand,
+                      );
+                    },
                   ),
+                ],
 
                 // Positioned Player Seats around the Table Perimeter
                 ...List.generate(count, (i) {
@@ -297,14 +378,14 @@ class _TableScreenState extends State<TableScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Left badge: Blinds
+                // Left badge: Blinds & Compact Server IP
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: Colors.black.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.white12),
                   ),
@@ -327,6 +408,19 @@ class _TableScreenState extends State<TableScreen> {
                           color: Colors.white70,
                         ),
                       ),
+                      if (_c.server != null) ...[
+                        const SizedBox(width: 8),
+                        Container(width: 1, height: 10, color: Colors.white24),
+                        const SizedBox(width: 8),
+                        Text(
+                          _c.server!.serverUrl,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.gold,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

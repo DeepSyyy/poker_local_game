@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:poker_local_game/models/poker_player.dart';
 import 'package:poker_local_game/core/constants/app_colors.dart';
+import 'package:poker_local_game/services/sound_service.dart';
 
 class RaiseDialog extends StatefulWidget {
   final PokerPlayer player;
@@ -73,8 +74,14 @@ class _RaiseDialogState extends State<RaiseDialog> {
                         radius: 12,
                         backgroundColor: widget.player.avatarColor,
                         child: Text(
-                          widget.player.name.isNotEmpty ? widget.player.name[0].toUpperCase() : 'P',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                          widget.player.name.isNotEmpty
+                              ? widget.player.name[0].toUpperCase()
+                              : 'P',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -89,10 +96,17 @@ class _RaiseDialogState extends State<RaiseDialog> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                   ),
                 ],
               ),
@@ -109,12 +123,17 @@ class _RaiseDialogState extends State<RaiseDialog> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black45,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isAllIn ? AppColors.allInButton : AppColors.raiseButton,
+                              color: isAllIn
+                                  ? AppColors.allInButton
+                                  : AppColors.raiseButton,
                               width: 1.5,
                             ),
                           ),
@@ -126,7 +145,9 @@ class _RaiseDialogState extends State<RaiseDialog> {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
-                                  color: isAllIn ? AppColors.allInButton : AppColors.raiseButton,
+                                  color: isAllIn
+                                      ? AppColors.allInButton
+                                      : AppColors.raiseButton,
                                   letterSpacing: 0.8,
                                 ),
                               ),
@@ -146,18 +167,29 @@ class _RaiseDialogState extends State<RaiseDialog> {
                         const SizedBox(height: 8),
                         ElevatedButton(
                           onPressed: () {
+                            SoundService().playRaise();
                             widget.onConfirm(_selectedBet);
                             Navigator.pop(context);
                           },
+
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isAllIn ? AppColors.allInButton : AppColors.raiseButton,
+                            backgroundColor: isAllIn
+                                ? AppColors.allInButton
+                                : AppColors.raiseButton,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           child: Text(
-                            isAllIn ? 'ALL-IN ($_selectedBet)' : 'KONFIRMASI ($_selectedBet)',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            isAllIn
+                                ? 'ALL-IN ($_selectedBet)'
+                                : 'KONFIRMASI ($_selectedBet)',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
@@ -175,23 +207,41 @@ class _RaiseDialogState extends State<RaiseDialog> {
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.remove_circle_outline, color: AppColors.textSecondary, size: 18),
-                              onPressed: _selectedBet > widget.minRaise ? () => _setBet(_selectedBet - 10) : null,
+                              icon: const Icon(
+                                Icons.remove_circle_outline,
+                                color: AppColors.textSecondary,
+                                size: 18,
+                              ),
+                              onPressed: _selectedBet > widget.minRaise
+                                  ? () => _setBet(_selectedBet - 10)
+                                  : null,
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              constraints: const BoxConstraints(
+                                minWidth: 26,
+                                minHeight: 26,
+                              ),
                             ),
                             Expanded(
                               child: SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
-                                  activeTrackColor: isAllIn ? AppColors.allInButton : AppColors.raiseButton,
-                                  thumbColor: isAllIn ? AppColors.allInButton : AppColors.raiseButton,
+                                  activeTrackColor: isAllIn
+                                      ? AppColors.allInButton
+                                      : AppColors.raiseButton,
+                                  thumbColor: isAllIn
+                                      ? AppColors.allInButton
+                                      : AppColors.raiseButton,
                                   inactiveTrackColor: Colors.white12,
                                   trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                                  thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 7,
+                                  ),
                                 ),
                                 child: Slider(
                                   value: _selectedBet.toDouble(),
-                                  min: min(widget.minRaise, widget.maxRaise).toDouble(),
+                                  min: min(
+                                    widget.minRaise,
+                                    widget.maxRaise,
+                                  ).toDouble(),
                                   max: widget.maxRaise.toDouble(),
                                   onChanged: (val) {
                                     _setBet(val.round());
@@ -200,10 +250,19 @@ class _RaiseDialogState extends State<RaiseDialog> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.add_circle_outline, color: AppColors.textSecondary, size: 18),
-                              onPressed: _selectedBet < widget.maxRaise ? () => _setBet(_selectedBet + 10) : null,
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                color: AppColors.textSecondary,
+                                size: 18,
+                              ),
+                              onPressed: _selectedBet < widget.maxRaise
+                                  ? () => _setBet(_selectedBet + 10)
+                                  : null,
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              constraints: const BoxConstraints(
+                                minWidth: 26,
+                                minHeight: 26,
+                              ),
                             ),
                           ],
                         ),
@@ -215,14 +274,31 @@ class _RaiseDialogState extends State<RaiseDialog> {
                           runSpacing: 4,
                           alignment: WrapAlignment.center,
                           children: [
-                            _buildQuickButton('Min (${widget.minRaise})', () => _setBet(widget.minRaise)),
+                            _buildQuickButton(
+                              'Min (${widget.minRaise})',
+                              () => _setBet(widget.minRaise),
+                            ),
                             if (widget.currentBet > 0) ...[
-                              _buildQuickButton('2x (${widget.currentBet * 2})', () => _setBet(widget.currentBet * 2)),
-                              _buildQuickButton('3x (${widget.currentBet * 3})', () => _setBet(widget.currentBet * 3)),
+                              _buildQuickButton(
+                                '2x (${widget.currentBet * 2})',
+                                () => _setBet(widget.currentBet * 2),
+                              ),
+                              _buildQuickButton(
+                                '3x (${widget.currentBet * 3})',
+                                () => _setBet(widget.currentBet * 3),
+                              ),
                             ],
                             if (widget.pot > 0) ...[
-                              _buildQuickButton('½ Pot', () => _setBet(widget.currentBet + (widget.pot ~/ 2))),
-                              _buildQuickButton('Pot', () => _setBet(widget.currentBet + widget.pot)),
+                              _buildQuickButton(
+                                '½ Pot',
+                                () => _setBet(
+                                  widget.currentBet + (widget.pot ~/ 2),
+                                ),
+                              ),
+                              _buildQuickButton(
+                                'Pot',
+                                () => _setBet(widget.currentBet + widget.pot),
+                              ),
                             ],
                             _buildQuickButton(
                               'ALL-IN',
@@ -243,7 +319,11 @@ class _RaiseDialogState extends State<RaiseDialog> {
     );
   }
 
-  Widget _buildQuickButton(String label, VoidCallback onTap, {bool isAccent = false}) {
+  Widget _buildQuickButton(
+    String label,
+    VoidCallback onTap, {
+    bool isAccent = false,
+  }) {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(

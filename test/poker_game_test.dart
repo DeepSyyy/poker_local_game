@@ -4,6 +4,8 @@ import 'package:poker_local_game/models/poker_player.dart';
 import 'package:poker_local_game/models/poker_game_state.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('PokerGameController Tests', () {
     late PokerGameController controller;
 

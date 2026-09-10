@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:poker_local_game/models/playing_card.dart';
+import 'package:poker_local_game/services/sound_service.dart';
 
 class CasinoCardWidget extends StatefulWidget {
   final PlayingCard? card;
@@ -8,6 +9,7 @@ class CasinoCardWidget extends StatefulWidget {
   final double width;
   final double height;
   final bool allowPeek;
+  final bool isWinningCard;
 
   const CasinoCardWidget({
     super.key,
@@ -16,6 +18,7 @@ class CasinoCardWidget extends StatefulWidget {
     this.width = 44,
     this.height = 62,
     this.allowPeek = false,
+    this.isWinningCard = false,
   });
 
   @override
@@ -50,6 +53,7 @@ class _CasinoCardWidgetState extends State<CasinoCardWidget>
     super.didUpdateWidget(oldWidget);
     if (widget.isFaceUp != oldWidget.isFaceUp) {
       if (widget.isFaceUp) {
+        SoundService().playFlipCard();
         _controller.forward();
       } else {
         _controller.reverse();
@@ -65,6 +69,7 @@ class _CasinoCardWidgetState extends State<CasinoCardWidget>
 
   void _onPeekStart() {
     if (!widget.allowPeek || widget.isFaceUp) return;
+    SoundService().playFlipCard();
     setState(() => _isPeeking = true);
     _controller.forward();
   }
@@ -129,70 +134,90 @@ class _CasinoCardWidgetState extends State<CasinoCardWidget>
 
   Widget _buildCardFront(PlayingCard card) {
     final suitColor = card.suit.color;
+    final isWin = widget.isWinningCard;
 
-    return Container(
-      width: widget.width,
-      height: widget.height,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+    return Transform.scale(
+      scale: isWin ? 1.08 : 1.0,
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAFAFA),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isWin ? const Color(0xFFFFD700) : const Color(0xFFCBD5E1),
+            width: isWin ? 2.5 : 1.2,
           ),
-          if (_isPeeking)
-            BoxShadow(
-              color: Colors.amber.withValues(alpha: 0.8),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Corner Rank & Suit
-          Positioned(
-            top: 1,
-            left: 2,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  card.rank.label,
-                  style: TextStyle(
-                    fontSize: widget.height * 0.26,
-                    fontWeight: FontWeight.w900,
-                    color: suitColor,
-                    height: 0.9,
-                  ),
+          boxShadow: [
+            if (isWin) ...[
+              const BoxShadow(
+                color: Color(0xFFFFD700),
+                blurRadius: 12,
+                spreadRadius: 3,
+              ),
+              BoxShadow(
+                color: Colors.amber.withValues(alpha: 0.9),
+                blurRadius: 18,
+                spreadRadius: 4,
+              ),
+            ] else ...[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+              if (_isPeeking)
+                BoxShadow(
+                  color: Colors.amber.withValues(alpha: 0.8),
+                  blurRadius: 10,
+                  spreadRadius: 2,
                 ),
-                Text(
-                  card.suit.symbol,
-                  style: TextStyle(
-                    fontSize: widget.height * 0.2,
-                    color: suitColor,
-                    height: 0.9,
+            ],
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Corner Rank & Suit
+            Positioned(
+              top: 1,
+              left: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    card.rank.label,
+                    style: TextStyle(
+                      fontSize: widget.height * 0.26,
+                      fontWeight: FontWeight.w900,
+                      color: suitColor,
+                      height: 0.9,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // Center Large Suit Symbol / Watermark
-          Center(
-            child: Text(
-              card.suit.symbol,
-              style: TextStyle(
-                fontSize: widget.height * 0.42,
-                color: suitColor.withValues(alpha: 0.85),
+                  Text(
+                    card.suit.symbol,
+                    style: TextStyle(
+                      fontSize: widget.height * 0.2,
+                      color: suitColor,
+                      height: 0.9,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+
+            // Center Large Suit Symbol / Watermark
+            Center(
+              child: Text(
+                card.suit.symbol,
+                style: TextStyle(
+                  fontSize: widget.height * 0.42,
+                  color: suitColor.withValues(alpha: 0.85),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

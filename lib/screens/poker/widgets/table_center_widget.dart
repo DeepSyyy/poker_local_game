@@ -11,6 +11,7 @@ class TableCenterWidget extends StatelessWidget {
   final BettingStreet street;
   final int currentBet;
   final List<PlayingCard> communityCards;
+  final List<PlayingCard> winningCards;
   final VoidCallback? onShowdownTap;
   final VoidCallback? onNextHandTap;
 
@@ -21,6 +22,7 @@ class TableCenterWidget extends StatelessWidget {
     required this.street,
     required this.currentBet,
     required this.communityCards,
+    this.winningCards = const [],
     this.onShowdownTap,
     this.onNextHandTap,
   });
@@ -69,7 +71,10 @@ class TableCenterWidget extends StatelessWidget {
           const SizedBox(height: 6),
 
           // Community Cards Slot Area
-          CommunityCardsWidget(cards: communityCards),
+          CommunityCardsWidget(
+            cards: communityCards,
+            winningCards: winningCards,
+          ),
 
           const SizedBox(height: 6),
 

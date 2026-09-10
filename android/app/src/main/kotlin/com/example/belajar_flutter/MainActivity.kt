@@ -1,4 +1,4 @@
-package com.example.belajar_flutter
+package co.id.pokerakses.belajar_flutter
 
 import io.flutter.embedding.android.FlutterActivity
 

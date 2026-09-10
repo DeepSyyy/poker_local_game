@@ -7,6 +7,7 @@ import 'package:poker_local_game/models/playing_card.dart';
 import 'package:poker_local_game/models/deck.dart';
 import 'package:poker_local_game/models/hand_evaluator.dart';
 import 'package:poker_local_game/services/poker_server.dart';
+import 'package:poker_local_game/services/sound_service.dart';
 
 class PokerGameController extends ChangeNotifier {
   List<PokerPlayer> _players = [];
@@ -173,14 +174,12 @@ class PokerGameController extends ChangeNotifier {
 
   void _scheduleAutoNextHand() {
     _autoNextHandTimer?.cancel();
-    _autoNextHandTimer = Timer(const Duration(seconds: 4), () {
+    _autoNextHandTimer = Timer(const Duration(seconds: 3), () {
       if (_street == BettingStreet.handEnded) {
         startNewHand();
       }
     });
   }
-
-
 
   void _startHandInternal() {
     for (var p in _players) {
@@ -356,6 +355,8 @@ class PokerGameController extends ChangeNotifier {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return;
 
+    SoundService().playBet();
+
     final pay = callAmount;
     p.chips -= pay;
     p.currentRoundBet += pay;
@@ -384,7 +385,10 @@ class PokerGameController extends ChangeNotifier {
 
     if (additionalChips <= 0) return;
 
+    SoundService().playBet();
+
     final raiseSize = target - _currentBet;
+
     if (raiseSize > 0) {
       _lastRaiseSize = raiseSize;
       _currentBet = target;
