@@ -102,6 +102,13 @@ flutter build apk --split-per-abi
 ```
 File APK siap dipasang akan berada di: `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`.
 
+### Deploy ke GitHub Pages (Web)
+Proyek ini sudah dilengkapi file workflow otomatis di `.github/workflows/deploy.yml`:
+1. Di repository GitHub Anda, buka **Settings** $\rightarrow$ **Pages**.
+2. Pada opsi **Build and deployment** > **Source**, pilih **GitHub Actions**.
+3. Setiap kali Anda melakukan `git push` ke branch `main`, aplikasi web akan otomatis di-build dan di-deploy ke alamat:
+   `https://adyasena.github.io/belajar_flutter/`
+
 ---
 
 ## 🧪 Pengujian (Tests)
