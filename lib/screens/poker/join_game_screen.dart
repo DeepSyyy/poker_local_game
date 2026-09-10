@@ -31,18 +31,25 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
   }
 
   void _connect([String? inputUrl]) {
-    final raw = inputUrl ?? _ipController.text.trim();
+    final raw = (inputUrl ?? _ipController.text).trim();
     if (raw.isEmpty) return;
 
-    // Extract IP:Port from raw string (handles "http://192.168.1.34:8080" or "192.168.1.34")
-    String formattedUrl = raw
-        .replaceAll('http://', '')
-        .replaceAll('https://', '');
-    if (formattedUrl.contains('/')) {
-      formattedUrl = formattedUrl.split('/').first;
-    }
-    if (!formattedUrl.contains(':')) {
-      formattedUrl = '$formattedUrl:8080';
+    String formattedUrl = raw;
+    if (formattedUrl.length == 4 &&
+        RegExp(r'^[a-zA-Z0-9]{4}$').hasMatch(formattedUrl)) {
+      formattedUrl = formattedUrl.toUpperCase();
+    } else {
+      formattedUrl = formattedUrl
+          .replaceAll('http://', '')
+          .replaceAll('https://', '')
+          .replaceAll('ws://', '')
+          .replaceAll('wss://', '');
+      if (formattedUrl.contains('/')) {
+        formattedUrl = formattedUrl.split('/').first;
+      }
+      if (!formattedUrl.contains(':')) {
+        formattedUrl = '$formattedUrl:8080';
+      }
     }
 
     if (_isScanning) {
@@ -354,23 +361,25 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
             ),
             const SizedBox(height: 16),
 
-            // IP Input Box
+            // IP / Room Code Input Box
             TextField(
               controller: _ipController,
-              keyboardType: TextInputType.url,
+              keyboardType: TextInputType.text,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
               decoration: InputDecoration(
-                labelText: 'IP Server Lokal (misal 192.168.1.34)',
+                labelText: 'Kode Room (misal 8F3A) atau IP (192.168.1.34)',
+                hintText: 'Contoh: 8F3A atau 192.168.1.34',
+                hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
                 labelStyle: const TextStyle(
                   color: AppColors.textSecondary,
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
                 prefixIcon: const Icon(
-                  Icons.language_rounded,
+                  Icons.vpn_key_rounded,
                   color: AppColors.gold,
                 ),
                 filled: true,
@@ -388,6 +397,7 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
 
             // Connect Button

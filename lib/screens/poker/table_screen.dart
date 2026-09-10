@@ -430,11 +430,26 @@ class _TableScreenState extends State<TableScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildFloatingIconButton(
+                      icon: Icons.cloud_sync_rounded,
+                      tooltip: _c.server?.remoteRoomCode != null
+                          ? 'Room Online Aktif: ${_c.server!.remoteRoomCode}'
+                          : 'Buat Room Code Online (Render)',
+                      accentColor: _c.server?.remoteRoomCode != null
+                          ? AppColors.primary
+                          : AppColors.gold,
+                      onTap: () {
+                        if (_c.server == null) _c.startServer();
+                        _c.server?.connectToRelayServer();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFloatingIconButton(
                       icon: Icons.qr_code_2_rounded,
                       tooltip: 'Sambung HP Pemain (QR Code)',
                       accentColor: AppColors.primary,
                       onTap: _openQrConnectDialog,
                     ),
+
                     const SizedBox(width: 8),
                     _buildFloatingIconButton(
                       icon: Icons.history_rounded,

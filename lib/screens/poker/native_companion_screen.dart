@@ -59,40 +59,76 @@ class _NativeCompanionScreenState extends State<NativeCompanionScreen> {
       });
     }
 
-    final cleanUrl = _currentServerUrl
-        .replaceAll('http://', '')
-        .replaceAll('https://', '')
-        .replaceAll('/ws', '');
+    String roomCode = '';
+    String host = '';
+    int port = 8080;
+    Uri wsUri;
 
-    final parts = cleanUrl.split(':');
-    final host = parts[0];
-    final port = parts.length > 1 ? (int.tryParse(parts[1]) ?? 8080) : 8080;
-    final wsUri = Uri.parse('ws://$host:$port/ws');
+    final raw = _currentServerUrl.trim();
+    if (raw.contains('/room/')) {
+      final parts = raw.split('/room/');
+      host = parts[0]
+          .replaceAll('https://', '')
+          .replaceAll('http://', '')
+          .replaceAll('wss://', '')
+          .replaceAll('ws://', '');
+      roomCode = parts[1].toUpperCase();
+      final isWss =
+          raw.startsWith('https://') ||
+          raw.startsWith('wss://') ||
+          (!host.startsWith('192.168.') &&
+              !host.startsWith('10.') &&
+              !host.startsWith('127.'));
+      final scheme = isWss ? 'wss' : 'ws';
+      wsUri = Uri.parse('$scheme://$host');
+    } else if (raw.length == 4 && RegExp(r'^[a-zA-Z0-9]{4}$').hasMatch(raw)) {
+      roomCode = raw.toUpperCase();
+      host = 'poker-relay-server-341707153383.asia-southeast2.run.app';
+      wsUri = Uri.parse('wss://$host');
+    } else {
+      final cleanUrl = raw
+          .replaceAll('http://', '')
+          .replaceAll('https://', '')
+          .replaceAll('ws://', '')
+          .replaceAll('wss://', '')
+          .replaceAll('/ws', '');
+      final parts = cleanUrl.split(':');
+      host = parts[0];
+      port = parts.length > 1 ? (int.tryParse(parts[1]) ?? 8080) : 8080;
+      wsUri = Uri.parse('ws://$host:$port/ws');
+    }
 
-    // Fast TCP probe to avoid 30s native OS timeout freeze
-    try {
-      final probe = await Socket.connect(
-        host,
-        port,
-        timeout: const Duration(milliseconds: 1200),
-      );
-      await probe.close();
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isConnecting = false;
-          _isConnected = false;
-          _errorMessage = 'Gagal ke $host:$port (Cek Wi-Fi Host)';
-        });
+    // Fast TCP probe to avoid 30s OS timeout, only for raw IPv4 addresses
+    if (RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(host)) {
+      try {
+        final probe = await Socket.connect(
+          host,
+          port,
+          timeout: const Duration(milliseconds: 1200),
+        );
+        await probe.close();
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isConnecting = false;
+            _isConnected = false;
+            _errorMessage = 'Gagal ke $host:$port (Cek Wi-Fi Host)';
+          });
+        }
+        return;
       }
-      return;
     }
 
     try {
       final socket = await WebSocket.connect(
         wsUri.toString(),
-      ).timeout(const Duration(seconds: 3));
+      ).timeout(const Duration(seconds: 5));
       _socket = socket;
+
+      if (roomCode.isNotEmpty) {
+        _socket!.add(jsonEncode({'type': 'join_room', 'roomCode': roomCode}));
+      }
+
       if (mounted) {
         setState(() {
           _isConnected = true;
@@ -463,93 +499,6 @@ class _NativeCompanionScreenState extends State<NativeCompanionScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardSurface,
-        title: Row(
-          children: [
-            _isConnected
-                ? Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primary,
-                    ),
-                  )
-                : (_errorMessage != null
-                      ? const Icon(
-                          Icons.error_outline_rounded,
-                          color: Colors.redAccent,
-                          size: 16,
-                        )
-                      : const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.gold,
-                          ),
-                        )),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _isConnected
-                    ? 'Terhubung ($_currentServerUrl)'
-                    : (_errorMessage ??
-                          (_isConnecting
-                              ? 'Menghubungkan $_currentServerUrl...'
-                              : 'Mencoba terhubung $_currentServerUrl...')),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: _isConnected
-                      ? Colors.white
-                      : (_errorMessage != null
-                            ? Colors.redAccent
-                            : AppColors.gold),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_card_rounded, color: AppColors.gold),
-            onPressed: _showRebuyDialog,
-            tooltip: 'Top-Up / Tambah Chip Pemain',
-          ),
-          IconButton(
-            icon: Icon(
-              _cardsFaceUp
-                  ? Icons.visibility_rounded
-                  : Icons.visibility_off_rounded,
-              color: AppColors.gold,
-            ),
-            onPressed: () => setState(() => _cardsFaceUp = !_cardsFaceUp),
-            tooltip: _cardsFaceUp
-                ? 'Sembunyikan Kartu Saku'
-                : 'Buka Kartu Saku',
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit_rounded, color: AppColors.gold),
-            onPressed: _showEditIpDialog,
-            tooltip: 'Ubah IP Host',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.gold),
-            onPressed: () {
-              _socket?.close();
-              setState(() {
-                _isConnected = false;
-                _isConnecting = false;
-              });
-              _connectWebSocket();
-            },
-            tooltip: 'Hubungkan Ulang',
-          ),
-        ],
-      ),
       body: OrientationBuilder(
         builder: (context, orientation) {
           if (orientation == Orientation.portrait) {
@@ -614,6 +563,57 @@ class _NativeCompanionScreenState extends State<NativeCompanionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 0. Compact Top Bar (Back button, Connection Status, Quick Actions)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildFloatingIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      tooltip: 'Kembali',
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildConnectionStatusPill(),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildFloatingIconButton(
+                      icon: Icons.add_card_rounded,
+                      tooltip: 'Top-Up / Tambah Chip',
+                      accentColor: AppColors.gold,
+                      onTap: _showRebuyDialog,
+                    ),
+                    const SizedBox(width: 6),
+                    _buildFloatingIconButton(
+                      icon: Icons.edit_rounded,
+                      tooltip: 'Ubah IP Host',
+                      accentColor: AppColors.primary,
+                      onTap: _showEditIpDialog,
+                    ),
+                    const SizedBox(width: 6),
+                    _buildFloatingIconButton(
+                      icon: Icons.refresh_rounded,
+                      tooltip: 'Hubungkan Ulang',
+                      onTap: () {
+                        _socket?.close();
+                        setState(() {
+                          _isConnected = false;
+                          _isConnecting = false;
+                        });
+                        _connectWebSocket();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
             // 1. Player Selector Bar (Collapses into Profile Header once selected)
             _buildPlayerSelector(rawPlayers, me),
             const SizedBox(height: 10),
@@ -980,155 +980,235 @@ class _NativeCompanionScreenState extends State<NativeCompanionScreen> {
           ),
         ),
 
-        // 2. FLOATING TOP PLAYER SELECTOR BAR (Collapses into Compact Top-Left Pill in Landscape)
+        // 2. FLOATING TOP CONTROLS BAR (Compact Floating Header)
+        Positioned(
+          top: 8,
+          left: 12,
+          right: 12,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Left: Back button + Connection status pill
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildFloatingIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Kembali',
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildConnectionStatusPill(),
+                ],
+              ),
+
+              // Center: Player Role Badge (When player is selected and not editing)
+              if (_selectedPlayerId.isNotEmpty && !_isEditingPlayer)
+                _buildPlayerSelector(rawPlayers, me, isLandscape: true),
+
+              // Right: Action Buttons (Top-Up, Toggle Eye/Cards, Edit IP, Refresh)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildFloatingIconButton(
+                    icon: Icons.add_card_rounded,
+                    tooltip: 'Top-Up / Tambah Chip',
+                    accentColor: AppColors.gold,
+                    onTap: _showRebuyDialog,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFloatingIconButton(
+                    icon: _cardsFaceUp
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
+                    tooltip: _cardsFaceUp ? 'Sembunyikan Kartu' : 'Buka Kartu',
+                    accentColor: AppColors.gold,
+                    onTap: () => setState(() => _cardsFaceUp = !_cardsFaceUp),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFloatingIconButton(
+                    icon: Icons.edit_rounded,
+                    tooltip: 'Ubah IP Host',
+                    accentColor: AppColors.primary,
+                    onTap: _showEditIpDialog,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFloatingIconButton(
+                    icon: Icons.refresh_rounded,
+                    tooltip: 'Hubungkan Ulang',
+                    onTap: () {
+                      _socket?.close();
+                      setState(() {
+                        _isConnected = false;
+                        _isConnecting = false;
+                      });
+                      _connectWebSocket();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // 3. FLOATING PLAYER SELECTOR OVERLAY (If no player selected or editing role)
         if (_selectedPlayerId.isEmpty || _isEditingPlayer)
           Positioned(
-            top: 6,
-            left: 12,
-            right: 12,
-            child: _buildPlayerSelector(rawPlayers, me, isLandscape: true),
-          )
-        else
-          Positioned(
-            top: 6,
-            left: 12,
-            child: _buildPlayerSelector(rawPlayers, me, isLandscape: true),
+            top: 48,
+            left: 20,
+            right: 20,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: _buildPlayerSelector(rawPlayers, me, isLandscape: true),
+              ),
+            ),
           ),
 
-        // 3. FLOATING ACTION DOCK AT THE BOTTOM
+        // 4. FLOATING ACTION DOCK AT THE BOTTOM (Centered & Unclipped)
         Positioned(
-          bottom: 4,
-          left: 10,
-          right: 10,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTurnBanner(
-                street: street,
-                isMyTurn: isMyTurn,
-                isLandscape: true,
-              ),
-              if (_selectedPlayerId != 'host' &&
-                  street != BettingStreet.lobby) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isMyTurn ? () => _sendAction('fold') : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.foldButton,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 36),
-                        ),
-                        child: const Text(
-                          'FOLD',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
+          bottom: 8,
+          left: 14,
+          right: 14,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTurnBanner(
+                    street: street,
+                    isMyTurn: isMyTurn,
+                    isLandscape: true,
+                  ),
+                  if (_selectedPlayerId != 'host' &&
+                      street != BettingStreet.lobby) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isMyTurn
+                                ? () => _sendAction('fold')
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.foldButton,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              minimumSize: const Size(0, 34),
+                            ),
+                            child: const Text(
+                              'FOLD',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isMyTurn
-                            ? () {
-                                if (callAmount == 0 ||
-                                    myCurrentBet == currentBet) {
-                                  _sendAction('check');
-                                } else {
-                                  _sendAction('call');
-                                }
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isMyTurn
+                                ? () {
+                                    if (callAmount == 0 ||
+                                        myCurrentBet == currentBet) {
+                                      _sendAction('check');
+                                    } else {
+                                      _sendAction('call');
+                                    }
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  (callAmount == 0 ||
+                                      myCurrentBet == currentBet)
+                                  ? AppColors.checkButton
+                                  : AppColors.callButton,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              minimumSize: const Size(0, 34),
+                            ),
+                            child: Text(
                               (callAmount == 0 || myCurrentBet == currentBet)
-                              ? AppColors.checkButton
-                              : AppColors.callButton,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 36),
-                        ),
-                        child: Text(
-                          (callAmount == 0 || myCurrentBet == currentBet)
-                              ? 'CHECK'
-                              : 'CALL $callAmount',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
+                                  ? 'CHECK'
+                                  : 'CALL $callAmount',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isMyTurn
-                            ? () {
-                                final minR =
-                                    (_gameState?['minRaise'] as num?)
-                                        ?.toInt() ??
-                                    20;
-                                final maxR =
-                                    (_gameState?['maxRaise'] as num?)
-                                        ?.toInt() ??
-                                    100;
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => RaiseDialog(
-                                    player: me,
-                                    currentBet: currentBet,
-                                    minRaise: minR,
-                                    maxRaise: maxR,
-                                    pot: pot,
-                                    onConfirm: (amt) =>
-                                        _sendAction('raise', amt),
-                                  ),
-                                );
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.raiseButton,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 36),
-                        ),
-                        child: const Text(
-                          'RAISE',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isMyTurn
+                                ? () {
+                                    final minR =
+                                        (_gameState?['minRaise'] as num?)
+                                            ?.toInt() ??
+                                        20;
+                                    final maxR =
+                                        (_gameState?['maxRaise'] as num?)
+                                            ?.toInt() ??
+                                        100;
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => RaiseDialog(
+                                        player: me,
+                                        currentBet: currentBet,
+                                        minRaise: minR,
+                                        maxRaise: maxR,
+                                        pot: pot,
+                                        onConfirm: (amt) =>
+                                            _sendAction('raise', amt),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.raiseButton,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              minimumSize: const Size(0, 34),
+                            ),
+                            child: const Text(
+                              'RAISE',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isMyTurn ? () => _sendAction('allIn') : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.allInButton,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 36),
-                        ),
-                        child: const Text(
-                          'ALL-IN',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isMyTurn
+                                ? () => _sendAction('allIn')
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.allInButton,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              minimumSize: const Size(0, 34),
+                            ),
+                            child: const Text(
+                              'ALL-IN',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
-                ),
-              ],
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -1138,6 +1218,77 @@ class _NativeCompanionScreenState extends State<NativeCompanionScreen> {
   // ==========================================
   // HELPER WIDGETS
   // ==========================================
+  Widget _buildFloatingIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    Color? accentColor,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.65),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: accentColor?.withValues(alpha: 0.5) ?? Colors.white12,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            child: Icon(icon, size: 16, color: accentColor ?? Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConnectionStatusPill() {
+    final statusColor = _isConnected
+        ? AppColors.primary
+        : (_errorMessage != null ? Colors.redAccent : AppColors.gold);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: statusColor,
+              boxShadow: _isConnected
+                  ? [BoxShadow(color: statusColor, blurRadius: 6)]
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _isConnected
+                ? 'Terhubung'
+                : (_errorMessage ??
+                      (_isConnecting ? 'Connecting...' : 'Offline')),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlayerSelector(
     List<dynamic> rawPlayers,
     PokerPlayer me, {

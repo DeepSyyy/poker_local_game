@@ -16,19 +16,116 @@ class PokerServer {
   bool _isListening = false;
   late int _boundPort;
 
+  // Remote Relay Room Server
+  String? _remoteRoomCode;
+  WebSocket? _relaySocket;
+  String _relayServerUrl =
+      'wss://poker-relay-server-341707153383.asia-southeast2.run.app';
+
   PokerServer({required this.controller, this.port = 8080}) {
     _boundPort = port;
     controller.addListener(_broadcastState);
   }
 
-  bool get isRunning => _server != null && _isListening;
+  bool get isRunning =>
+      (_server != null && _isListening) || (_relaySocket != null);
   String? get localIp => _localIp;
   int get actualPort => _boundPort;
-  String get serverUrl => _localIp != null
-      ? 'http://$_localIp:$_boundPort'
-      : 'http://localhost:$_boundPort';
+  String? get remoteRoomCode => _remoteRoomCode;
+  String get relayServerUrl => _relayServerUrl;
+
+  String get serverUrl => _remoteRoomCode != null
+      ? 'Room Code: $_remoteRoomCode'
+      : (_localIp != null
+            ? 'http://$_localIp:$_boundPort'
+            : 'http://localhost:$_boundPort');
+
   int get connectedSocketsCount => _sockets.length;
   Set<String> get connectedPlayerIds => _socketPlayerMap.values.toSet();
+
+  Future<void> connectToRelayServer({String? customRelayUrl}) async {
+    if (customRelayUrl != null && customRelayUrl.isNotEmpty) {
+      _relayServerUrl = customRelayUrl;
+    }
+
+    try {
+      final wsUrl = _relayServerUrl
+          .replaceFirst('http://', 'ws://')
+          .replaceFirst('https://', 'wss://');
+
+      final socket = await WebSocket.connect(
+        wsUrl,
+      ).timeout(const Duration(seconds: 5));
+      _relaySocket = socket;
+
+      socket.add(jsonEncode({'type': 'create_room'}));
+
+      socket.listen(
+        (data) {
+          try {
+            final msg = jsonDecode(data.toString());
+            if (msg['type'] == 'room_created') {
+              _remoteRoomCode = msg['roomCode'] as String?;
+              _broadcastState();
+              controller.notifyStateChanged();
+            } else if (msg['type'] == 'action' ||
+                msg['type'] == 'select_player' ||
+                msg['type'] == 'add_chips') {
+              _handleRelayClientMessage(msg);
+            }
+          } catch (_) {}
+        },
+        onDone: () {
+          _relaySocket = null;
+          _remoteRoomCode = null;
+          controller.notifyStateChanged();
+        },
+        onError: (_) {
+          _relaySocket = null;
+          _remoteRoomCode = null;
+          controller.notifyStateChanged();
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) print('Failed to connect to relay server: $e');
+    }
+  }
+
+  void _handleRelayClientMessage(Map<String, dynamic> msg) {
+    final type = msg['type'] as String?;
+    final playerId = msg['playerId'] as String?;
+
+    if (type == 'add_chips') {
+      final targetPlayerId = (msg['targetPlayerId'] as String?) ?? playerId;
+      final amount = (msg['amount'] as num?)?.toInt() ?? 0;
+      if (targetPlayerId != null && targetPlayerId.isNotEmpty && amount > 0) {
+        controller.addChipsToPlayer(targetPlayerId, amount);
+      }
+      return;
+    }
+
+    if (type == 'action' && playerId != null) {
+      final active = controller.currentTurnPlayer;
+      if (active == null || active.id != playerId) {
+        return; // Reject out-of-turn action
+      }
+
+      final action = msg['action'] as String?;
+      if (action == 'fold') {
+        controller.fold();
+      } else if (action == 'check') {
+        controller.check();
+      } else if (action == 'call') {
+        controller.call();
+      } else if (action == 'raise') {
+        final amount =
+            (msg['amount'] as num?)?.toInt() ?? controller.minRaiseAmount;
+        controller.raiseTo(amount);
+      } else if (action == 'allIn') {
+        controller.allIn();
+      }
+    }
+  }
 
   Future<void> start() async {
     if (_isListening) return;
@@ -200,6 +297,14 @@ class PokerServer {
   }
 
   void _broadcastState() {
+    if (_relaySocket != null && _relaySocket!.readyState == WebSocket.open) {
+      try {
+        _relaySocket!.add(
+          jsonEncode({'type': 'state', 'state': _buildStateMap()}),
+        );
+      } catch (_) {}
+    }
+
     if (_sockets.isEmpty) return;
 
     for (var socket in List.from(_sockets)) {
