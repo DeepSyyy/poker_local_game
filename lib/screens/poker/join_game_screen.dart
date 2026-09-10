@@ -101,7 +101,73 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
   Widget _buildCameraScanner() {
     return Stack(
       children: [
-        MobileScanner(controller: _scannerController, onDetect: _onDetect),
+        MobileScanner(
+          controller: _scannerController,
+          onDetect: _onDetect,
+          errorBuilder: (context, error, child) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardSurface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.redAccent.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.videocam_off_rounded,
+                        color: Colors.redAccent,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Kamera Tidak Tersedia',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Penyebab: Izin kamera belum diberikan atau berjalan di iOS Simulator / Android Emulator.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => setState(() => _isScanning = false),
+                        icon: const Icon(Icons.keyboard_rounded),
+                        label: const Text('Gunakan Input IP Manual'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
 
         // Scanning Frame Overlay
         Center(
@@ -122,7 +188,7 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
           ),
         ),
 
-        // Top Hint Banner
+        // Top Hint Banner & Controls
         Positioned(
           top: 20,
           left: 20,
@@ -134,18 +200,49 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white24),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(Icons.qr_code_2_rounded, color: AppColors.gold, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Arahkan kamera ke QR Code Meja Utama',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.qr_code_2_rounded,
+                      color: AppColors.gold,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Arahkan ke QR Code Meja',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.flash_on_rounded,
+                        color: AppColors.gold,
+                        size: 20,
+                      ),
+                      onPressed: () => _scannerController?.toggleTorch(),
+                      tooltip: 'Lampu Senter',
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.cameraswitch_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: () => _scannerController?.switchCamera(),
+                      tooltip: 'Ganti Kamera',
+                    ),
+                  ],
                 ),
               ],
             ),

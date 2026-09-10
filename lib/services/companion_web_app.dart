@@ -68,7 +68,9 @@ class CompanionWebApp {
   <div class="header">
     <select id="playerSelect" class="player-select" onchange="onPlayerChanged()">
       <option value="">-- Pilih Pemain --</option>
+      <option value="host">👑 Bandar / Host Game (Spectator)</option>
     </select>
+    <button onclick="promptTopUp()" style="background:#10b981; color:#fff; border:none; padding:6px 10px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">➕ Top-Up</button>
     <div class="status-badge">
       <div id="statusDot" class="dot"></div>
       <span id="statusText">Terhubung</span>
@@ -160,13 +162,35 @@ class CompanionWebApp {
       };
     }
 
+    function promptTopUp() {
+      if (!gameState || !gameState.players || gameState.players.length === 0) return;
+      const playerList = gameState.players.map((p, i) => (i + 1) + '. ' + p.name + ' (' + p.chips + ' chip)').join('\n');
+      const idxStr = prompt('Top-Up Chip Pemain:\nPilih nomor pemain (1-' + gameState.players.length + '):\n' + playerList, '1');
+      if (!idxStr) return;
+      const idx = parseInt(idxStr) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= gameState.players.length) {
+        alert('Nomor pemain tidak valid!');
+        return;
+      }
+      const targetPlayer = gameState.players[idx];
+      const amtStr = prompt('Masukkan jumlah chip yang ingin ditambahkan untuk ' + targetPlayer.name + ':', '1000');
+      if (!amtStr) return;
+      const amt = parseInt(amtStr);
+      if (isNaN(amt) || amt <= 0) {
+        alert('Jumlah chip tidak valid!');
+        return;
+      }
+      ws.send(JSON.stringify({ type: 'add_chips', targetPlayerId: targetPlayer.id, amount: amt }));
+    }
+
     function renderState() {
       if (!gameState) return;
 
       // Render player dropdown
       const select = document.getElementById('playerSelect');
-      select.innerHTML = '<option value="">-- Pilih Pemain --</option>';
+      select.innerHTML = '<option value="">-- Pilih Pemain --</option><option value="host">👑 Bandar / Host Game (Spectator)</option>';
       gameState.players.forEach(p => {
+        if (p.isTakenByOther && p.id !== selectedPlayerId) return;
         const opt = document.createElement('option');
         opt.value = p.id;
         const roleStr = p.roleLabel || 'Player';
@@ -174,6 +198,10 @@ class CompanionWebApp {
         if (p.id === selectedPlayerId) opt.selected = true;
         select.appendChild(opt);
       });
+      if (selectedPlayerId === 'host') {
+        const optHost = select.querySelector('option[value="host"]');
+        if (optHost) optHost.selected = true;
+      }
 
 
       const me = gameState.players.find(p => p.id === selectedPlayerId);

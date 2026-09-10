@@ -155,6 +155,15 @@ class PokerServer {
     final type = msg['type'] as String?;
     final playerId = msg['playerId'] as String?;
 
+    if (type == 'add_chips') {
+      final targetPlayerId = (msg['targetPlayerId'] as String?) ?? playerId;
+      final amount = (msg['amount'] as num?)?.toInt() ?? 0;
+      if (targetPlayerId != null && targetPlayerId.isNotEmpty && amount > 0) {
+        controller.addChipsToPlayer(targetPlayerId, amount);
+      }
+      return;
+    }
+
     if (type == 'select_player') {
       if (playerId != null && playerId.isNotEmpty) {
         _socketPlayerMap[socket] = playerId;
@@ -224,6 +233,8 @@ class PokerServer {
         controller.street == BettingStreet.showdown ||
         controller.street == BettingStreet.handEnded;
 
+    final takenPlayerIds = _socketPlayerMap.values.toSet();
+
     return {
       'street': controller.street.name,
       'streetLabel': controller.street.label,
@@ -234,6 +245,7 @@ class PokerServer {
       'maxRaise': controller.maxRaiseAmount,
       'currentTurnPlayerId': active?.id,
       'currentTurnPlayerName': active?.name,
+      'takenPlayerIds': takenPlayerIds.toList(),
       'communityCards': controller.communityCards
           .map(
             (c) => {
@@ -244,9 +256,14 @@ class PokerServer {
             },
           )
           .toList(),
+      'lastLog': controller.logs.isNotEmpty
+          ? controller.logs.last.message
+          : null,
       'players': controller.players.map((p) {
         final isMe = forPlayerId != null && p.id == forPlayerId;
         final revealHoleCards = isMe || isShowdownOrEnded;
+        final isTaken = takenPlayerIds.contains(p.id);
+        final isTakenByOther = isTaken && !isMe;
 
         String roleLabel = 'Player';
         if (p.isDealer) {
@@ -267,12 +284,20 @@ class PokerServer {
           'isSmallBlind': p.isSmallBlind,
           'isBigBlind': p.isBigBlind,
           'roleLabel': roleLabel,
-          'isOnline': _socketPlayerMap.values.contains(p.id),
+          'handEvaluation': p.evaluation?.description,
+          'evaluationRank': p.evaluation?.rank.label,
+          'isOnline': isTaken,
+          'isTaken': isTaken,
+          'isTakenByOther': isTakenByOther,
           'holeCards': p.holeCards.map((c) {
             if (revealHoleCards) {
-              return {'rank': c.rank.label, 'suit': c.suit.symbol};
+              return {
+                'rank': c.rank.label,
+                'suit': c.suit.symbol,
+                'isFaceUp': c.isFaceUp,
+              };
             } else {
-              return {'rank': '?', 'suit': '?'};
+              return {'rank': '?', 'suit': '?', 'isFaceUp': false};
             }
           }).toList(),
         };

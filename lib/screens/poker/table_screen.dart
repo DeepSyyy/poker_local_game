@@ -367,7 +367,8 @@ class _TableScreenState extends State<TableScreen> {
           ),
 
           // 3. FLOATING ACTION DOCK AT THE BOTTOM (Ramping & Mengambang di Bawah)
-          if (_c.street != BettingStreet.showdown &&
+          if (_c.street != BettingStreet.lobby &&
+              _c.street != BettingStreet.showdown &&
               _c.street != BettingStreet.handEnded) ...[
             Positioned(
               bottom: 8,
@@ -432,7 +433,7 @@ class _TableScreenState extends State<TableScreen> {
   Alignment _getSeatAlignment(int index, int total) {
     switch (total) {
       case 2:
-        // 2 Pemain (Heads-Up): Kiri & Kanan berhadapan, sangat lapang & tidak menumpuk vertikal
+        // 2 Pemain (Heads-Up): Kiri & Kanan berhadapan
         return index == 0
             ? const Alignment(-0.84, 0.0)
             : const Alignment(0.84, 0.0);
@@ -441,7 +442,7 @@ class _TableScreenState extends State<TableScreen> {
         // 3 Pemain: Kiri, Atas, Kanan
         const positions = [
           Alignment(-0.84, 0.15),
-          Alignment(0.0, -0.76),
+          Alignment(0.0, -0.80),
           Alignment(0.84, 0.15),
         ];
         return positions[index % positions.length];
@@ -450,9 +451,9 @@ class _TableScreenState extends State<TableScreen> {
         // 4 Pemain: Kiri, Atas, Kanan, Bawah
         const positions = [
           Alignment(-0.84, 0.0),
-          Alignment(0.0, -0.76),
+          Alignment(0.0, -0.80),
           Alignment(0.84, 0.0),
-          Alignment(0.0, 0.74),
+          Alignment(0.0, 0.80),
         ];
         return positions[index % positions.length];
 
@@ -460,10 +461,10 @@ class _TableScreenState extends State<TableScreen> {
         // 5 Pemain: Kiri, Atas-Kiri, Atas-Kanan, Kanan, Bawah
         const positions = [
           Alignment(-0.84, 0.12),
-          Alignment(-0.48, -0.76),
-          Alignment(0.48, -0.76),
+          Alignment(-0.48, -0.80),
+          Alignment(0.48, -0.80),
           Alignment(0.84, 0.12),
-          Alignment(0.0, 0.74),
+          Alignment(0.0, 0.80),
         ];
         return positions[index % positions.length];
 
@@ -471,11 +472,11 @@ class _TableScreenState extends State<TableScreen> {
         // 6 Pemain: Kiri, Atas-Kiri, Atas-Kanan, Kanan, Bawah-Kanan, Bawah-Kiri
         const positions = [
           Alignment(-0.84, 0.0),
-          Alignment(-0.48, -0.76),
-          Alignment(0.48, -0.76),
+          Alignment(-0.48, -0.80),
+          Alignment(0.48, -0.80),
           Alignment(0.84, 0.0),
-          Alignment(0.48, 0.74),
-          Alignment(-0.48, 0.74),
+          Alignment(0.48, 0.80),
+          Alignment(-0.48, 0.80),
         ];
         return positions[index % positions.length];
 
@@ -483,12 +484,12 @@ class _TableScreenState extends State<TableScreen> {
         // 7 Pemain
         const positions = [
           Alignment(-0.84, 0.08),
-          Alignment(-0.52, -0.76),
-          Alignment(0.0, -0.76),
-          Alignment(0.52, -0.76),
+          Alignment(-0.52, -0.80),
+          Alignment(0.0, -0.80),
+          Alignment(0.52, -0.80),
           Alignment(0.84, 0.08),
-          Alignment(0.45, 0.74),
-          Alignment(-0.45, 0.74),
+          Alignment(0.45, 0.80),
+          Alignment(-0.45, 0.80),
         ];
         return positions[index % positions.length];
 
@@ -496,19 +497,19 @@ class _TableScreenState extends State<TableScreen> {
         // 8 Pemain
         const positions = [
           Alignment(-0.84, 0.0),
-          Alignment(-0.54, -0.76),
-          Alignment(0.0, -0.76),
-          Alignment(0.54, -0.76),
+          Alignment(-0.54, -0.80),
+          Alignment(0.0, -0.80),
+          Alignment(0.54, -0.80),
           Alignment(0.84, 0.0),
-          Alignment(0.54, 0.74),
-          Alignment(0.0, 0.74),
-          Alignment(-0.54, 0.74),
+          Alignment(0.54, 0.80),
+          Alignment(0.0, 0.80),
+          Alignment(-0.54, 0.80),
         ];
         return positions[index % positions.length];
 
       default:
-        final angle = (pi / 2) + (index * 2 * pi / total);
-        return Alignment(0.84 * cos(angle), 0.74 * sin(angle));
+        final angle = (pi / 2) + (index * 2 * pi / max(1, total));
+        return Alignment(0.84 * cos(angle), 0.80 * sin(angle));
     }
   }
 
@@ -520,95 +521,87 @@ class _TableScreenState extends State<TableScreen> {
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.primary, width: 2),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.primary, width: 1.5),
           boxShadow: const [
             BoxShadow(color: Colors.black87, blurRadius: 15, spreadRadius: 3),
           ],
         ),
-        child: Column(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'LOBBY: MENUNGGU PEMAIN JOIN',
-              style: TextStyle(
-                color: AppColors.gold,
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Scan QR atau ketik IP ini di HP pemain:',
-              style: TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-            const SizedBox(height: 10),
+            // Compact QR Code Image on Left
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: QrImageView(
                 data: url,
                 version: QrVersions.auto,
-                size: 130.0,
+                size: 85.0,
                 backgroundColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.cardSurfaceElevated,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: SelectableText(
-                url,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.gold,
+            const SizedBox(width: 14),
+            // Information & Start Game Button Column on Right
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'LOBBY: MENUNGGU PEMAIN JOIN',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'HP Terhubung: $onlineCount / $totalCount Perangkat',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: onlineCount > 0
-                    ? AppColors.primary
-                    : Colors.orangeAccent,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () => _c.startGameFromLobby(),
-              icon: const Icon(Icons.play_arrow_rounded, size: 20),
-              label: const Text('MULAI GAME & BAGIKAN KARTU'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+                const SizedBox(height: 2),
+                Text(
+                  'Scan QR atau buka IP: $url',
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 4),
+                Text(
+                  'HP Terhubung: $onlineCount / $totalCount Perangkat',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: onlineCount > 0
+                        ? AppColors.primary
+                        : Colors.orangeAccent,
+                  ),
                 ),
-                elevation: 4,
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () => _c.startGameFromLobby(),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                  label: const Text('MULAI GAME & BAGIKAN KARTU'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.gold,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

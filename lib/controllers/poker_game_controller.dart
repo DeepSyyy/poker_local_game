@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:poker_local_game/models/poker_player.dart';
@@ -29,6 +30,7 @@ class PokerGameController extends ChangeNotifier {
   final Deck _deck = Deck();
   final List<PlayingCard> _communityCards = [];
   PokerServer? _server;
+  Timer? _autoNextHandTimer;
 
   // Getters
   List<PokerPlayer> get players => _players;
@@ -163,10 +165,22 @@ class PokerGameController extends ChangeNotifier {
 
   /// Memulai ronde hand baru
   void startNewHand() {
+    _autoNextHandTimer?.cancel();
     _dealerIndex = _getNextActivePlayerIndex(_dealerIndex);
     _startHandInternal();
     notifyListeners();
   }
+
+  void _scheduleAutoNextHand() {
+    _autoNextHandTimer?.cancel();
+    _autoNextHandTimer = Timer(const Duration(seconds: 4), () {
+      if (_street == BettingStreet.handEnded) {
+        startNewHand();
+      }
+    });
+  }
+
+
 
   void _startHandInternal() {
     for (var p in _players) {
@@ -601,7 +615,11 @@ class PokerGameController extends ChangeNotifier {
         final winners = eligible
             .where((p) => p.evaluation!.compareTo(bestEval) == 0)
             .toList();
-        awardPot(currentPot, winners.map((w) => w.id).toList());
+        awardPot(
+          currentPot,
+          winners.map((w) => w.id).toList(),
+          isAutoShowdown: true,
+        );
       }
     }
   }
@@ -612,9 +630,14 @@ class PokerGameController extends ChangeNotifier {
     _pot = 0;
     _pots.clear();
     _street = BettingStreet.handEnded;
+    _scheduleAutoNextHand();
   }
 
-  void awardPot(Pot pot, List<String> winnerIds) {
+  void awardPot(
+    Pot pot,
+    List<String> winnerIds, {
+    bool isAutoShowdown = false,
+  }) {
     if (winnerIds.isEmpty) return;
 
     final share = pot.amount ~/ winnerIds.length;
