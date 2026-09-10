@@ -1,8 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:belajar_flutter/models/poker_player.dart';
-import 'package:belajar_flutter/models/poker_game_state.dart';
-import 'package:belajar_flutter/core/constants/app_colors.dart';
+import 'package:poker_local_game/models/poker_player.dart';
+import 'package:poker_local_game/models/poker_game_state.dart';
+import 'package:poker_local_game/core/constants/app_colors.dart';
+import 'package:poker_local_game/screens/poker/widgets/casino_card_widget.dart';
 
 class ShowdownDialog extends StatefulWidget {
   final Pot currentPot;
@@ -24,6 +25,28 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
   final Set<String> _selectedWinnerIds = {};
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-select top auto-evaluated winner(s)
+    final eligible = widget.allPlayers
+        .where(
+          (p) =>
+              widget.currentPot.eligiblePlayerIds.contains(p.id) &&
+              p.evaluation != null,
+        )
+        .toList();
+    if (eligible.isNotEmpty) {
+      eligible.sort((a, b) => b.evaluation!.compareTo(a.evaluation!));
+      final bestEval = eligible.first.evaluation!;
+      for (var p in eligible) {
+        if (p.evaluation!.compareTo(bestEval) == 0) {
+          _selectedWinnerIds.add(p.id);
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final eligiblePlayers = widget.allPlayers
         .where((p) => widget.currentPot.eligiblePlayerIds.contains(p.id))
@@ -37,7 +60,7 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
         side: const BorderSide(color: AppColors.gold, width: 1.5),
       ),
       child: Container(
-        width: min(480, MediaQuery.of(context).size.width * 0.8),
+        width: min(520, MediaQuery.of(context).size.width * 0.85),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -46,7 +69,11 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
             // Header
             Row(
               children: [
-                const Icon(Icons.emoji_events_rounded, color: AppColors.gold, size: 24),
+                const Icon(
+                  Icons.emoji_events_rounded,
+                  color: AppColors.gold,
+                  size: 24,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -61,7 +88,7 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
                         ),
                       ),
                       Text(
-                        'Total: ${widget.currentPot.amount} chip (Pilih pemain dengan kartu terbaik)',
+                        'Total Pot: ${widget.currentPot.amount} chip • Evaluasi Bandar Otomatis',
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppColors.gold,
@@ -77,7 +104,7 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
 
             // Eligible Players List
             ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 200),
+              constraints: const BoxConstraints(maxHeight: 240),
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: eligiblePlayers.length,
@@ -98,14 +125,19 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
                     },
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.gold.withValues(alpha: 0.15)
                             : AppColors.cardSurfaceElevated,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isSelected ? AppColors.gold : AppColors.borderSubtle,
+                          color: isSelected
+                              ? AppColors.gold
+                              : AppColors.borderSubtle,
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -123,29 +155,90 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  player.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: isSelected ? AppColors.gold : Colors.white,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      player.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: isSelected
+                                            ? AppColors.gold
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                    if (player.evaluation != null) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 1,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.primary,
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          player.evaluation!.rank.label,
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Saldo saat ini: ${player.chips} chip',
+                                  player.evaluation != null
+                                      ? player.evaluation!.description
+                                      : 'Saldo: ${player.chips} chip',
                                   style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
                             ),
                           ),
+
+                          // Cards Preview
+                          if (player.holeCards.length == 2) ...[
+                            Row(
+                              children: [
+                                CasinoCardWidget(
+                                  card: player.holeCards[0],
+                                  isFaceUp: true,
+                                  width: 24,
+                                  height: 34,
+                                ),
+                                const SizedBox(width: 2),
+                                CasinoCardWidget(
+                                  card: player.holeCards[1],
+                                  isFaceUp: true,
+                                  width: 24,
+                                  height: 34,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+
                           Checkbox(
                             value: isSelected,
                             activeColor: AppColors.gold,
@@ -167,7 +260,7 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
                 },
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
             if (_selectedWinnerIds.length > 1) ...[
               Container(
@@ -176,7 +269,9 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
                 decoration: BoxDecoration(
                   color: Colors.blueAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: Colors.blueAccent.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Text(
                   'Split Pot: ${widget.currentPot.amount ~/ _selectedWinnerIds.length} chip per pemenang (${_selectedWinnerIds.length} orang)',
@@ -204,10 +299,12 @@ class _ShowdownDialogState extends State<ShowdownDialog> {
                 disabledBackgroundColor: Colors.white12,
                 disabledForegroundColor: Colors.white30,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text(
-                'SERAHKAN CHIP POT KE PEMENANG',
+                'KONFIRMASI PEMENANG & BAGIKAN CHIP',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),

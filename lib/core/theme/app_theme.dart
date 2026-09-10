@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:belajar_flutter/core/constants/app_colors.dart';
+import 'package:poker_local_game/core/constants/app_colors.dart';
 
 /// Konfigurasi tema global aplikasi (Poker Theme)
 class AppTheme {

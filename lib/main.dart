@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:belajar_flutter/app.dart';
+import 'package:poker_local_game/app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

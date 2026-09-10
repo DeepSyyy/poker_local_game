@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:belajar_flutter/controllers/poker_game_controller.dart';
-import 'package:belajar_flutter/models/poker_player.dart';
-import 'package:belajar_flutter/models/poker_game_state.dart';
+import 'package:poker_local_game/controllers/poker_game_controller.dart';
+import 'package:poker_local_game/models/poker_player.dart';
+import 'package:poker_local_game/models/poker_game_state.dart';
 
 void main() {
   group('PokerGameController Tests', () {
@@ -14,6 +14,8 @@ void main() {
         initialChips: 1000,
         smallBlind: 10,
         bigBlind: 20,
+        initialDealerIndex: 0,
+        startImmediately: true,
       );
     });
 
@@ -101,6 +103,9 @@ void main() {
         initialChips: 100, // Small stack
         smallBlind: 10,
         bigBlind: 20,
+        autoDealCards: true,
+        initialDealerIndex: 0,
+        startImmediately: true,
       );
 
       // Pre-flop: P1 all in (100)
@@ -116,15 +121,14 @@ void main() {
       potController.call();
       expect(potController.players[2].status, PlayerStatus.allIn);
 
-      // Everyone is All-In, goes straight to showdown
-      expect(potController.street, BettingStreet.showdown);
-      expect(potController.pots.length, 1);
-      expect(potController.pots.first.amount, 300);
-
-      // Award pot to P1
-      potController.awardPot(potController.pots.first, [potController.players[0].id]);
-      expect(potController.players[0].chips, 300);
+      // Everyone is All-In, bandar automatically deals remaining community cards and awards pot
       expect(potController.street, BettingStreet.handEnded);
+      expect(potController.communityCards.length, 5);
+      final totalChipsInPlay = potController.players.fold(
+        0,
+        (sum, p) => sum + p.chips,
+      );
+      expect(totalChipsInPlay, 300); // 300 total chips intact
     });
   });
 }

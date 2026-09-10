@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:belajar_flutter/models/poker_player.dart';
-import 'package:belajar_flutter/core/constants/app_colors.dart';
+import 'package:poker_local_game/models/poker_player.dart';
+import 'package:poker_local_game/core/constants/app_colors.dart';
 
 class PokerActionBar extends StatelessWidget {
   final PokerPlayer? activePlayer;
+  final bool isOnline;
   final bool canCheck;
   final int callAmount;
   final bool canRaise;
@@ -16,6 +17,7 @@ class PokerActionBar extends StatelessWidget {
   const PokerActionBar({
     super.key,
     required this.activePlayer,
+    this.isOnline = false,
     required this.canCheck,
     required this.callAmount,
     required this.canRaise,
@@ -40,13 +42,16 @@ class PokerActionBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.2),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.6),
             blurRadius: 12,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Row(

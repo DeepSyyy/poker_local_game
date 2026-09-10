@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:belajar_flutter/models/poker_player.dart';
-import 'package:belajar_flutter/core/constants/app_colors.dart';
+import 'package:poker_local_game/models/poker_player.dart';
+import 'package:poker_local_game/core/constants/app_colors.dart';
 
 class RaiseDialog extends StatefulWidget {
   final PokerPlayer player;

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:poker_local_game/models/playing_card.dart';
+import 'package:poker_local_game/models/hand_evaluator.dart';
 
 enum PlayerStatus {
   active,
@@ -19,6 +21,8 @@ class PokerPlayer {
   bool isBigBlind;
   bool hasActedThisRound;
   final Color avatarColor;
+  List<PlayingCard> holeCards;
+  HandEvaluation? evaluation;
 
   PokerPlayer({
     required this.id,
@@ -32,10 +36,13 @@ class PokerPlayer {
     this.isBigBlind = false,
     this.hasActedThisRound = false,
     required this.avatarColor,
-  });
+    List<PlayingCard>? holeCards,
+    this.evaluation,
+  }) : holeCards = holeCards ?? [];
 
   bool get canAct => status == PlayerStatus.active && chips > 0;
-  bool get isInHand => status != PlayerStatus.folded && status != PlayerStatus.out;
+  bool get isInHand =>
+      status != PlayerStatus.folded && status != PlayerStatus.out;
 
   void resetForNewStreet() {
     currentRoundBet = 0;
@@ -49,6 +56,8 @@ class PokerPlayer {
     isDealer = false;
     isSmallBlind = false;
     isBigBlind = false;
+    holeCards.clear();
+    evaluation = null;
     if (chips > 0) {
       status = PlayerStatus.active;
     } else {
@@ -68,6 +77,8 @@ class PokerPlayer {
     bool? isBigBlind,
     bool? hasActedThisRound,
     Color? avatarColor,
+    List<PlayingCard>? holeCards,
+    HandEvaluation? evaluation,
   }) {
     return PokerPlayer(
       id: id ?? this.id,
@@ -81,6 +92,8 @@ class PokerPlayer {
       isBigBlind: isBigBlind ?? this.isBigBlind,
       hasActedThisRound: hasActedThisRound ?? this.hasActedThisRound,
       avatarColor: avatarColor ?? this.avatarColor,
+      holeCards: holeCards ?? List.from(this.holeCards),
+      evaluation: evaluation ?? this.evaluation,
     );
   }
 }

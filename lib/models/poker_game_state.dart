@@ -1,4 +1,5 @@
 enum BettingStreet {
+  lobby,
   preFlop,
   flop,
   turn,
@@ -8,6 +9,8 @@ enum BettingStreet {
 
   String get label {
     switch (this) {
+      case BettingStreet.lobby:
+        return 'Lobby (Menunggu Pemain)';
       case BettingStreet.preFlop:
         return 'Pre-Flop';
       case BettingStreet.flop:
@@ -36,15 +39,7 @@ class Pot {
   });
 }
 
-enum ActionType {
-  fold,
-  check,
-  call,
-  raise,
-  allIn,
-  blind,
-  win,
-}
+enum ActionType { fold, check, call, raise, allIn, blind, win }
 
 class PokerActionLog {
   final String playerName;

@@ -1,24 +1,26 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:belajar_flutter/core/constants/app_colors.dart';
-import 'package:belajar_flutter/controllers/poker_game_controller.dart';
-import 'package:belajar_flutter/models/poker_game_state.dart';
-import 'package:belajar_flutter/screens/poker/widgets/player_seat_widget.dart';
-import 'package:belajar_flutter/screens/poker/widgets/table_center_widget.dart';
-import 'package:belajar_flutter/screens/poker/widgets/poker_action_bar.dart';
-import 'package:belajar_flutter/screens/poker/widgets/raise_dialog.dart';
-import 'package:belajar_flutter/screens/poker/widgets/showdown_dialog.dart';
-import 'package:belajar_flutter/screens/poker/widgets/rebuy_dialog.dart';
-import 'package:belajar_flutter/screens/poker/widgets/action_history_sheet.dart';
-import 'package:belajar_flutter/screens/poker/setup_screen.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:poker_local_game/core/constants/app_colors.dart';
+import 'package:poker_local_game/controllers/poker_game_controller.dart';
+import 'package:poker_local_game/models/poker_game_state.dart';
+
+import 'package:poker_local_game/screens/poker/widgets/player_seat_widget.dart';
+import 'package:poker_local_game/screens/poker/widgets/table_center_widget.dart';
+import 'package:poker_local_game/screens/poker/widgets/poker_action_bar.dart';
+import 'package:poker_local_game/screens/poker/widgets/raise_dialog.dart';
+import 'package:poker_local_game/screens/poker/widgets/showdown_dialog.dart';
+import 'package:poker_local_game/screens/poker/widgets/rebuy_dialog.dart';
+import 'package:poker_local_game/screens/poker/widgets/action_history_sheet.dart';
+import 'package:poker_local_game/models/poker_player.dart';
+import 'package:poker_local_game/screens/poker/widgets/card_picker_dialog.dart';
+import 'package:poker_local_game/screens/poker/widgets/qr_connect_dialog.dart';
+import 'package:poker_local_game/screens/poker/setup_screen.dart';
 
 class TableScreen extends StatefulWidget {
   final PokerGameController controller;
 
-  const TableScreen({
-    super.key,
-    required this.controller,
-  });
+  const TableScreen({super.key, required this.controller});
 
   @override
   State<TableScreen> createState() => _TableScreenState();
@@ -77,6 +79,33 @@ class _TableScreenState extends State<TableScreen> {
           }
         },
       ),
+    );
+  }
+
+  void _openCardPickerDialog(PokerPlayer player) {
+    showDialog(
+      context: context,
+      builder: (context) => CardPickerDialog(
+        title: 'Input Kartu Fisik: ${player.name}',
+        initialSelection: player.holeCards,
+        unavailableCards: _c.usedCards
+            .where((c) => !player.holeCards.contains(c))
+            .toList(),
+        maxSelection: 2,
+        onConfirm: (selected) {
+          _c.setPlayerHoleCards(player.id, selected);
+        },
+      ),
+    );
+  }
+
+  void _openQrConnectDialog() {
+    if (_c.server == null) {
+      _c.startServer();
+    }
+    showDialog(
+      context: context,
+      builder: (context) => QrConnectDialog(server: _c.server!),
     );
   }
 
@@ -144,7 +173,10 @@ class _TableScreenState extends State<TableScreen> {
             },
             child: const Text(
               'Reset ke Setup',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -168,7 +200,10 @@ class _TableScreenState extends State<TableScreen> {
                 // Green Felt Oval Table (Meja Poker Full Screen)
                 Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: const RadialGradient(
@@ -211,23 +246,30 @@ class _TableScreenState extends State<TableScreen> {
                   ),
                 ),
 
-                // Center Table Info (Pot, Street, Showdown/Next Hand CTA)
-                TableCenterWidget(
-                  pot: _c.pot,
-                  pots: _c.pots,
-                  street: _c.street,
-                  currentBet: _c.currentBet,
-                  onShowdownTap: _openShowdownDialog,
-                  onNextHandTap: _c.startNewHand,
-                ),
+                // Center Table Info (Pot, Street, Community Cards, Next Hand CTA or Lobby UI)
+                if (_c.street == BettingStreet.lobby)
+                  _buildLobbyCenterWidget()
+                else
+                  TableCenterWidget(
+                    pot: _c.pot,
+                    pots: _c.pots,
+                    street: _c.street,
+                    currentBet: _c.currentBet,
+                    communityCards: _c.communityCards,
+                    onShowdownTap: _openShowdownDialog,
+                    onNextHandTap: _c.startNewHand,
+                  ),
 
                 // Positioned Player Seats around the Table Perimeter
                 ...List.generate(count, (i) {
                   final align = _getSeatAlignment(i, count);
                   final player = _c.players[i];
-                  final isTurn = _c.currentTurnIndex == i &&
+                  final isTurn =
+                      _c.currentTurnIndex == i &&
                       _c.street != BettingStreet.showdown &&
-                      _c.street != BettingStreet.handEnded;
+                      _c.street != BettingStreet.handEnded &&
+                      _c.street != BettingStreet.lobby;
+                  final isOnline = _c.isPlayerOnline(player.id);
 
                   return Align(
                     alignment: align,
@@ -236,6 +278,9 @@ class _TableScreenState extends State<TableScreen> {
                       child: PlayerSeatWidget(
                         player: player,
                         isCurrentTurn: isTurn,
+                        isOnline: isOnline,
+                        isLobbyMode: _c.street == BettingStreet.lobby,
+                        onTap: () => _openCardPickerDialog(player),
                       ),
                     ),
                   );
@@ -254,7 +299,10 @@ class _TableScreenState extends State<TableScreen> {
               children: [
                 // Left badge: Blinds
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(16),
@@ -263,11 +311,21 @@ class _TableScreenState extends State<TableScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.casino_rounded, color: AppColors.primary, size: 14),
+                      const Icon(
+                        Icons.casino_rounded,
+                        color: AppColors.primary,
+                        size: 14,
+                      ),
                       const SizedBox(width: 6),
                       Text(
-                        _c.blindsEnabled ? 'Blinds: ${_c.smallBlind}/${_c.bigBlind}' : 'Casual Poker',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70),
+                        _c.blindsEnabled
+                            ? 'Blinds: ${_c.smallBlind}/${_c.bigBlind}'
+                            : 'Casual Poker',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white70,
+                        ),
                       ),
                     ],
                   ),
@@ -277,6 +335,13 @@ class _TableScreenState extends State<TableScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    _buildFloatingIconButton(
+                      icon: Icons.qr_code_2_rounded,
+                      tooltip: 'Sambung HP Pemain (QR Code)',
+                      accentColor: AppColors.primary,
+                      onTap: _openQrConnectDialog,
+                    ),
+                    const SizedBox(width: 8),
                     _buildFloatingIconButton(
                       icon: Icons.history_rounded,
                       tooltip: 'Log Aksi',
@@ -302,7 +367,8 @@ class _TableScreenState extends State<TableScreen> {
           ),
 
           // 3. FLOATING ACTION DOCK AT THE BOTTOM (Ramping & Mengambang di Bawah)
-          if (_c.street != BettingStreet.showdown && _c.street != BettingStreet.handEnded) ...[
+          if (_c.street != BettingStreet.showdown &&
+              _c.street != BettingStreet.handEnded) ...[
             Positioned(
               bottom: 8,
               left: 20,
@@ -312,6 +378,9 @@ class _TableScreenState extends State<TableScreen> {
                   constraints: const BoxConstraints(maxWidth: 620),
                   child: PokerActionBar(
                     activePlayer: _c.currentTurnPlayer,
+                    isOnline:
+                        _c.currentTurnPlayer != null &&
+                        _c.isPlayerOnline(_c.currentTurnPlayer!.id),
                     canCheck: _c.canCheck,
                     callAmount: _c.callAmount,
                     canRaise: _c.canRaiseAmount,
@@ -340,7 +409,9 @@ class _TableScreenState extends State<TableScreen> {
       color: Colors.black.withValues(alpha: 0.6),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: accentColor?.withValues(alpha: 0.4) ?? Colors.white12),
+        side: BorderSide(
+          color: accentColor?.withValues(alpha: 0.4) ?? Colors.white12,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -439,6 +510,110 @@ class _TableScreenState extends State<TableScreen> {
         final angle = (pi / 2) + (index * 2 * pi / total);
         return Alignment(0.84 * cos(angle), 0.74 * sin(angle));
     }
+  }
+
+  Widget _buildLobbyCenterWidget() {
+    final url = _c.server?.serverUrl ?? 'http://192.168.1.34:8080';
+    final onlineCount = _c.players.where((p) => _c.isPlayerOnline(p.id)).length;
+    final totalCount = _c.players.length;
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.primary, width: 2),
+          boxShadow: const [
+            BoxShadow(color: Colors.black87, blurRadius: 15, spreadRadius: 3),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'LOBBY: MENUNGGU PEMAIN JOIN',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Scan QR atau ketik IP ini di HP pemain:',
+              style: TextStyle(color: Colors.white70, fontSize: 10),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: QrImageView(
+                data: url,
+                version: QrVersions.auto,
+                size: 130.0,
+                backgroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceElevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderSubtle),
+              ),
+              child: SelectableText(
+                url,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.gold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'HP Terhubung: $onlineCount / $totalCount Perangkat',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: onlineCount > 0
+                    ? AppColors.primary
+                    : Colors.orangeAccent,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => _c.startGameFromLobby(),
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              label: const Text('MULAI GAME & BAGIKAN KARTU'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

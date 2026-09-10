@@ -1,13 +1,18 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:belajar_flutter/models/poker_player.dart';
-import 'package:belajar_flutter/models/poker_game_state.dart';
+import 'package:poker_local_game/models/poker_player.dart';
+import 'package:poker_local_game/models/poker_game_state.dart';
+import 'package:poker_local_game/models/playing_card.dart';
+import 'package:poker_local_game/models/deck.dart';
+import 'package:poker_local_game/models/hand_evaluator.dart';
+import 'package:poker_local_game/services/poker_server.dart';
 
 class PokerGameController extends ChangeNotifier {
   List<PokerPlayer> _players = [];
   int _smallBlind = 10;
   int _bigBlind = 20;
   bool _blindsEnabled = true;
+  bool _autoDealCards = true; // Default: Auto-deal virtual cards
 
   int _dealerIndex = 0;
   int _currentTurnIndex = 0;
@@ -20,11 +25,17 @@ class PokerGameController extends ChangeNotifier {
 
   final List<PokerActionLog> _logs = [];
 
+  // Card & Bandar System
+  final Deck _deck = Deck();
+  final List<PlayingCard> _communityCards = [];
+  PokerServer? _server;
+
   // Getters
   List<PokerPlayer> get players => _players;
   int get smallBlind => _smallBlind;
   int get bigBlind => _bigBlind;
   bool get blindsEnabled => _blindsEnabled;
+  bool get autoDealCards => _autoDealCards;
   int get dealerIndex => _dealerIndex;
   int get currentTurnIndex => _currentTurnIndex;
   BettingStreet get street => _street;
@@ -33,16 +44,63 @@ class PokerGameController extends ChangeNotifier {
   int get pot => _pot;
   List<Pot> get pots => _pots;
   List<PokerActionLog> get logs => List.unmodifiable(_logs.reversed);
+  List<PlayingCard> get communityCards => List.unmodifiable(_communityCards);
+  PokerServer? get server => _server;
+
+  void startServer({int port = 8080}) {
+    _server ??= PokerServer(controller: this, port: port);
+    _server!.start();
+  }
+
+  void stopServer() {
+    _server?.stop();
+    _server = null;
+  }
+
+  void notifyStateChanged() {
+    notifyListeners();
+  }
 
   PokerPlayer? get currentTurnPlayer {
-    if (_players.isEmpty || _currentTurnIndex < 0 || _currentTurnIndex >= _players.length) {
+    if (_players.isEmpty ||
+        _currentTurnIndex < 0 ||
+        _currentTurnIndex >= _players.length) {
       return null;
     }
     return _players[_currentTurnIndex];
   }
 
-  List<PokerPlayer> get activePlayers => _players.where((p) => p.canAct).toList();
-  List<PokerPlayer> get playersInHand => _players.where((p) => p.isInHand).toList();
+  List<PokerPlayer> get activePlayers =>
+      _players.where((p) => p.canAct).toList();
+  List<PokerPlayer> get playersInHand =>
+      _players.where((p) => p.isInHand).toList();
+
+  /// Collect all cards currently picked by any player or on community board
+  List<PlayingCard> get usedCards {
+    final list = <PlayingCard>[..._communityCards];
+    for (var p in _players) {
+      list.addAll(p.holeCards);
+    }
+    return list;
+  }
+
+  /// Toggle antara mode kartu fisik manual dan auto-deal virtual
+  void setAutoDealCards(bool enable) {
+    _autoDealCards = enable;
+    notifyListeners();
+  }
+
+  /// Set kartu saku pemain secara manual
+  void setPlayerHoleCards(String playerId, List<PlayingCard> cards) {
+    final player = _players.firstWhere((p) => p.id == playerId);
+    player.holeCards = List.from(cards);
+    _addLog(
+      player.name,
+      ActionType.check,
+      'Input kartu saku manual: ${cards.map((c) => c.shortCode).join(' ')}',
+    );
+    notifyListeners();
+  }
 
   /// Inisialisasi game baru dari Setup Screen
   void initializeGame({
@@ -51,10 +109,14 @@ class PokerGameController extends ChangeNotifier {
     required int smallBlind,
     required int bigBlind,
     bool blindsEnabled = true,
+    bool autoDealCards = true,
+    int? initialDealerIndex,
+    bool startImmediately = false,
   }) {
     _smallBlind = smallBlind;
     _bigBlind = bigBlind;
     _blindsEnabled = blindsEnabled;
+    _autoDealCards = autoDealCards;
     _logs.clear();
 
     final colors = [
@@ -63,35 +125,50 @@ class PokerGameController extends ChangeNotifier {
       const Color(0xFF66BB6A), // Green
       const Color(0xFFFFA726), // Orange
       const Color(0xFFAB47BC), // Purple
-      const Color(0xFF26C6DA), // Cyan
-      const Color(0xFFFFEE58), // Yellow
-      const Color(0xFFEC407A), // Pink
+      const Color(0xFF26A69A), // Teal
+      const Color(0xFFFF7043), // Deep Orange
+      const Color(0xFF8D6E63), // Brown
     ];
 
     _players = List.generate(playerNames.length, (index) {
       return PokerPlayer(
-        id: 'p_$index',
-        name: playerNames[index].trim().isEmpty ? 'Player ${index + 1}' : playerNames[index].trim(),
+        id: 'p_${index + 1}',
+        name: playerNames[index].trim().isEmpty
+            ? 'Player ${index + 1}'
+            : playerNames[index].trim(),
         chips: initialChips,
         avatarColor: colors[index % colors.length],
       );
     });
 
-    _dealerIndex = 0;
+    _dealerIndex = initialDealerIndex ?? Random().nextInt(_players.length);
+    _street = BettingStreet.lobby;
+    startServer();
+    if (startImmediately) {
+      _startHandInternal();
+    }
+    notifyListeners();
+  }
+
+  /// Memulai game dari Lobby setelah pemain terhubung
+  void startGameFromLobby() {
     _startHandInternal();
     notifyListeners();
   }
 
+  /// Mengecek apakah pemain sedang online (terhubung via HP/Web)
+  bool isPlayerOnline(String playerId) {
+    return _server?.connectedPlayerIds.contains(playerId) ?? false;
+  }
+
   /// Memulai ronde hand baru
   void startNewHand() {
-    // Pindahkan Dealer ke pemain berikutnya yang masih punya chip
     _dealerIndex = _getNextActivePlayerIndex(_dealerIndex);
     _startHandInternal();
     notifyListeners();
   }
 
   void _startHandInternal() {
-    // Reset status tiap pemain
     for (var p in _players) {
       p.resetForNewHand();
     }
@@ -101,19 +178,47 @@ class PokerGameController extends ChangeNotifier {
     _lastRaiseSize = _bigBlind;
     _street = BettingStreet.preFlop;
     _pots.clear();
+    _communityCards.clear();
 
-    final eligiblePlayers = _players.where((p) => p.status != PlayerStatus.out).toList();
+    _deck.reset();
+
+    final eligiblePlayers = _players
+        .where((p) => p.status != PlayerStatus.out)
+        .toList();
     if (eligiblePlayers.length < 2) {
-      _addLog('System', ActionType.blind, 'Tidak cukup pemain untuk memulai hand.');
+      _addLog(
+        'System',
+        ActionType.blind,
+        'Tidak cukup pemain untuk memulai hand.',
+      );
       return;
     }
 
-    // Tentukan posisi Dealer
     _players[_dealerIndex].isDealer = true;
+
+    // Jika mode autoDealCards aktif, bagikan 2 kartu saku virtual. Jika manual, biarkan kosong untuk kartu fisik.
+    if (_autoDealCards) {
+      for (var p in eligiblePlayers) {
+        p.holeCards = [
+          _deck.dealCard(isFaceUp: false),
+          _deck.dealCard(isFaceUp: false),
+        ];
+      }
+      _addLog(
+        'Bandar',
+        ActionType.check,
+        'Mengocok dek dan membagikan 2 kartu saku virtual.',
+      );
+    } else {
+      _addLog(
+        'System',
+        ActionType.check,
+        'Pemain memegang kartu fisik masing-masing. Tap kursi untuk menginput kartu jika diperlukan.',
+      );
+    }
 
     if (_blindsEnabled) {
       if (eligiblePlayers.length == 2) {
-        // Heads-up: Dealer is Small Blind, other player is Big Blind
         final sbIndex = _dealerIndex;
         final bbIndex = _getNextActivePlayerIndex(_dealerIndex);
 
@@ -125,11 +230,8 @@ class PokerGameController extends ChangeNotifier {
 
         _currentBet = _bigBlind;
         _lastRaiseSize = _bigBlind;
-
-        // Pre-flop heads up: Dealer (SB) jalan pertama
         _currentTurnIndex = sbIndex;
       } else {
-        // 3+ Players
         final sbIndex = _getNextActivePlayerIndex(_dealerIndex);
         final bbIndex = _getNextActivePlayerIndex(sbIndex);
         final utgIndex = _getNextActivePlayerIndex(bbIndex);
@@ -142,18 +244,19 @@ class PokerGameController extends ChangeNotifier {
 
         _currentBet = _bigBlind;
         _lastRaiseSize = _bigBlind;
-
-        // Pre-flop: UTG jalan pertama
         _currentTurnIndex = utgIndex;
       }
     } else {
-      // Tanpa blind: mulai dari sebelah kiri dealer
       _currentBet = 0;
       _lastRaiseSize = _bigBlind;
       _currentTurnIndex = _getNextActivePlayerIndex(_dealerIndex);
     }
 
-    _addLog('System', ActionType.blind, 'Hand baru dimulai. Dealer: ${_players[_dealerIndex].name}');
+    _addLog(
+      'System',
+      ActionType.blind,
+      'Hand baru dimulai. Dealer: ${_players[_dealerIndex].name}',
+    );
     _calculatePots();
   }
 
@@ -175,14 +278,12 @@ class PokerGameController extends ChangeNotifier {
   // AKSI TARUHAN (ACTIONS)
   // ======================
 
-  /// Apakah pemain aktif saat ini bisa Check?
   bool get canCheck {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return false;
     return p.currentRoundBet == _currentBet;
   }
 
-  /// Berapa chip yang dibutuhkan untuk Call?
   int get callAmount {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return 0;
@@ -190,7 +291,6 @@ class PokerGameController extends ChangeNotifier {
     return min(diff, p.chips);
   }
 
-  /// Minimum Raise to amount (total bet di ronde ini)
   int get minRaiseAmount {
     final p = currentTurnPlayer;
     if (p == null) return _bigBlind;
@@ -203,14 +303,12 @@ class PokerGameController extends ChangeNotifier {
     return min(target, p.chips + p.currentRoundBet);
   }
 
-  /// Maksimum Raise to amount (All-in)
   int get maxRaiseAmount {
     final p = currentTurnPlayer;
     if (p == null) return 0;
     return p.chips + p.currentRoundBet;
   }
 
-  /// Aksi: Fold
   void fold() {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return;
@@ -218,7 +316,6 @@ class PokerGameController extends ChangeNotifier {
     p.status = PlayerStatus.folded;
     _addLog(p.name, ActionType.fold, 'FOLD kartu');
 
-    // Cek jika hanya tersisa 1 pemain aktif di hand
     final remaining = playersInHand;
     if (remaining.length == 1) {
       _awardPotToSingleWinner(remaining.first);
@@ -230,7 +327,6 @@ class PokerGameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Aksi: Check
   void check() {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct || !canCheck) return;
@@ -242,7 +338,6 @@ class PokerGameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Aksi: Call
   void call() {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return;
@@ -265,7 +360,6 @@ class PokerGameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Aksi: Raise ke jumlah tertentu (total bet ronde ini)
   void raiseTo(int totalTargetBet) {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return;
@@ -280,7 +374,6 @@ class PokerGameController extends ChangeNotifier {
     if (raiseSize > 0) {
       _lastRaiseSize = raiseSize;
       _currentBet = target;
-      // Kenaikan taruhan membuka kembali giliran untuk pemain lain
       for (var other in _players) {
         if (other.id != p.id && other.canAct) {
           other.hasActedThisRound = false;
@@ -305,7 +398,6 @@ class PokerGameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Aksi: All-In
   void allIn() {
     final p = currentTurnPlayer;
     if (p == null || !p.canAct) return;
@@ -320,7 +412,6 @@ class PokerGameController extends ChangeNotifier {
   void _advanceTurnOrStreet() {
     _calculatePots();
 
-    // Cek apakah betting round ini sudah selesai
     if (_isBettingRoundComplete()) {
       _advanceStreet();
     } else {
@@ -332,16 +423,15 @@ class PokerGameController extends ChangeNotifier {
     final inHand = playersInHand;
     if (inHand.length <= 1) return true;
 
-    // Pemain yang masih bisa beraksi (tidak all-in, tidak fold)
     final canStillAct = _players.where((p) => p.canAct).toList();
 
-    // Jika 0 atau 1 pemain yang masih bisa bet, dan pemain tersebut sudah menyamakan currentBet
     if (canStillAct.isEmpty) return true;
-    if (canStillAct.length == 1 && canStillAct.first.hasActedThisRound && canStillAct.first.currentRoundBet == _currentBet) {
+    if (canStillAct.length == 1 &&
+        canStillAct.first.hasActedThisRound &&
+        canStillAct.first.currentRoundBet == _currentBet) {
       return true;
     }
 
-    // Ronde selesai jika semua pemain yang canAct sudah bertindak dan taruhannya sama dengan currentBet
     for (var p in canStillAct) {
       if (!p.hasActedThisRound || p.currentRoundBet != _currentBet) {
         return false;
@@ -351,42 +441,63 @@ class PokerGameController extends ChangeNotifier {
   }
 
   void _advanceStreet() {
-    // Reset round bets
     for (var p in _players) {
       p.resetForNewStreet();
     }
     _currentBet = 0;
     _lastRaiseSize = _bigBlind;
 
-    // Cek berapa pemain yang masih bisa bertaruh
     final canStillAct = _players.where((p) => p.canAct).toList();
 
     if (_street == BettingStreet.preFlop) {
       _street = BettingStreet.flop;
+      if (_autoDealCards) {
+        while (_communityCards.length < 3) {
+          _communityCards.add(_deck.dealCard(isFaceUp: true));
+        }
+      }
       _addLog('Table', ActionType.check, '--- FLOP (3 Kartu Meja) ---');
     } else if (_street == BettingStreet.flop) {
       _street = BettingStreet.turn;
+      if (_autoDealCards) {
+        if (_communityCards.length < 4) {
+          _communityCards.add(_deck.dealCard(isFaceUp: true));
+        }
+      }
       _addLog('Table', ActionType.check, '--- TURN (Kartu ke-4) ---');
     } else if (_street == BettingStreet.turn) {
       _street = BettingStreet.river;
+      if (_autoDealCards) {
+        if (_communityCards.length < 5) {
+          _communityCards.add(_deck.dealCard(isFaceUp: true));
+        }
+      }
       _addLog('Table', ActionType.check, '--- RIVER (Kartu ke-5) ---');
     } else if (_street == BettingStreet.river) {
       _street = BettingStreet.showdown;
       _addLog('Table', ActionType.check, '=== SHOWDOWN ===');
       _calculatePots();
+      _tryAutoEvaluateShowdown();
       return;
     }
 
-    // Jika tidak ada pemain yang bisa bertaruh lagi (semua all-in atau all-in kecuali 1),
-    // kita bisa langsung lompat ke showdown bertahap atau langsung ke showdown
     if (canStillAct.length <= 1) {
-      _addLog('Table', ActionType.check, 'Semua pemain All-In, langsung ke Showdown.');
+      _addLog(
+        'Table',
+        ActionType.check,
+        'Semua pemain All-In! Membuka sisa kartu meja...',
+      );
+      if (_autoDealCards) {
+        while (_communityCards.length < 5) {
+          _communityCards.add(_deck.dealCard(isFaceUp: true));
+        }
+      }
       _street = BettingStreet.showdown;
       _calculatePots();
+      _tryAutoEvaluateShowdown();
       return;
     }
 
-    // Posisi pertama jalan post-flop: pemain aktif pertama sebelah kiri Dealer
     _currentTurnIndex = _getNextActivePlayerIndex(_dealerIndex);
   }
 
@@ -413,7 +524,7 @@ class PokerGameController extends ChangeNotifier {
   }
 
   // ======================
-  // PERHITUNGAN POT & SIDE POT
+  // EVALUASI & POT
   // ======================
 
   void _calculatePots() {
@@ -421,8 +532,8 @@ class PokerGameController extends ChangeNotifier {
     final contributors = _players.where((p) => p.totalHandBet > 0).toList();
     if (contributors.isEmpty) return;
 
-    // Dapatkan semua level taruhan unik dari pemain
-    final betLevels = contributors.map((p) => p.totalHandBet).toSet().toList()..sort();
+    final betLevels = contributors.map((p) => p.totalHandBet).toSet().toList()
+      ..sort();
 
     int prevLevel = 0;
     int potCounter = 1;
@@ -447,19 +558,53 @@ class PokerGameController extends ChangeNotifier {
 
       if (potAmount > 0 && eligiblePlayerIds.isNotEmpty) {
         final potName = _pots.isEmpty ? 'Main Pot' : 'Side Pot ${potCounter++}';
-        _pots.add(Pot(
-          name: potName,
-          amount: potAmount,
-          eligiblePlayerIds: eligiblePlayerIds,
-        ));
+        _pots.add(
+          Pot(
+            name: potName,
+            amount: potAmount,
+            eligiblePlayerIds: eligiblePlayerIds,
+          ),
+        );
       }
       prevLevel = level;
     }
   }
 
-  // ======================
-  // PEMBAGIAN POT (WINNERS)
-  // ======================
+  void _tryAutoEvaluateShowdown() {
+    // Evaluasi jika semua pemain di hand memiliki 2 kartu saku dan ada 5 kartu meja
+    final activeInHand = _players.where((p) => p.isInHand).toList();
+    final allHaveCards = activeInHand.every((p) => p.holeCards.length == 2);
+
+    if (allHaveCards &&
+        _communityCards.length == 5 &&
+        activeInHand.isNotEmpty) {
+      for (var p in activeInHand) {
+        final all7 = [...p.holeCards, ..._communityCards];
+        p.evaluation = HandEvaluator.evaluate(all7);
+        p.holeCards.forEach((c) => c.isFaceUp = true);
+      }
+
+      final potList = List<Pot>.from(_pots);
+      for (var currentPot in potList) {
+        final eligible = _players
+            .where(
+              (p) =>
+                  currentPot.eligiblePlayerIds.contains(p.id) &&
+                  p.evaluation != null,
+            )
+            .toList();
+        if (eligible.isEmpty) continue;
+
+        eligible.sort((a, b) => b.evaluation!.compareTo(a.evaluation!));
+        final bestEval = eligible.first.evaluation!;
+
+        final winners = eligible
+            .where((p) => p.evaluation!.compareTo(bestEval) == 0)
+            .toList();
+        awardPot(currentPot, winners.map((w) => w.id).toList());
+      }
+    }
+  }
 
   void _awardPotToSingleWinner(PokerPlayer winner) {
     winner.chips += _pot;
@@ -469,7 +614,6 @@ class PokerGameController extends ChangeNotifier {
     _street = BettingStreet.handEnded;
   }
 
-  /// Bagikan Pot tertentu (Main Pot atau Side Pot) ke pemenang terpilih (bisa split)
   void awardPot(Pot pot, List<String> winnerIds) {
     if (winnerIds.isEmpty) return;
 
@@ -484,13 +628,16 @@ class PokerGameController extends ChangeNotifier {
         winner.chips += 1;
         remainder--;
       }
-      winnerNames.add(winner.name);
+      final evalDesc = winner.evaluation != null
+          ? ' (${winner.evaluation!.description})'
+          : '';
+      winnerNames.add('${winner.name}$evalDesc');
     }
 
     _addLog(
       winnerNames.join(', '),
       ActionType.win,
-      'Mendapatkan ${pot.name} sebesar ${pot.amount} chip!',
+      'Menang ${pot.name} sebesar ${pot.amount} chip!',
     );
 
     _pot -= pot.amount;
@@ -504,25 +651,27 @@ class PokerGameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ======================
-  // REBUY / TOP UP
-  // ======================
-
   void addChipsToPlayer(String playerId, int amount) {
     final player = _players.firstWhere((p) => p.id == playerId);
     player.chips += amount;
     if (player.status == PlayerStatus.out && player.chips > 0) {
       player.status = PlayerStatus.active;
     }
-    _addLog(player.name, ActionType.blind, 'Top-up/Rebuy +$amount chip (Total: ${player.chips})');
+    _addLog(
+      player.name,
+      ActionType.blind,
+      'Top-up/Rebuy +$amount chip (Total: ${player.chips})',
+    );
     notifyListeners();
   }
 
   void _addLog(String playerName, ActionType actionType, String message) {
-    _logs.add(PokerActionLog(
-      playerName: playerName,
-      actionType: actionType,
-      message: message,
-    ));
+    _logs.add(
+      PokerActionLog(
+        playerName: playerName,
+        actionType: actionType,
+        message: message,
+      ),
+    );
   }
 }

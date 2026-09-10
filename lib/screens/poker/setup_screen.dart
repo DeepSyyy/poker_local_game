@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:belajar_flutter/core/constants/app_colors.dart';
-import 'package:belajar_flutter/controllers/poker_game_controller.dart';
-import 'package:belajar_flutter/screens/poker/table_screen.dart';
+import 'package:poker_local_game/core/constants/app_colors.dart';
+import 'package:poker_local_game/controllers/poker_game_controller.dart';
+import 'package:poker_local_game/screens/poker/table_screen.dart';
 
 class SetupScreen extends StatefulWidget {
   final PokerGameController controller;
 
-  const SetupScreen({
-    super.key,
-    required this.controller,
-  });
+  const SetupScreen({super.key, required this.controller});
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -21,6 +18,8 @@ class _SetupScreenState extends State<SetupScreen> {
   bool _blindsEnabled = true;
   int _smallBlind = 10;
   int _bigBlind = 20;
+
+  bool _autoDealCards = true; // Default: Kartu Virtual APK / HP
 
   late List<TextEditingController> _nameControllers;
 
@@ -45,7 +44,10 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   void _startGame() {
-    final names = List.generate(_playerCount, (i) => _nameControllers[i].text.trim());
+    final names = List.generate(
+      _playerCount,
+      (i) => _nameControllers[i].text.trim(),
+    );
 
     widget.controller.initializeGame(
       playerNames: names,
@@ -53,6 +55,7 @@ class _SetupScreenState extends State<SetupScreen> {
       smallBlind: _smallBlind,
       bigBlind: _bigBlind,
       blindsEnabled: _blindsEnabled,
+      autoDealCards: _autoDealCards,
     );
 
     Navigator.pushReplacement(
@@ -84,9 +87,15 @@ class _SetupScreenState extends State<SetupScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.4),
+                          ),
                         ),
-                        child: const Icon(Icons.casino_rounded, color: AppColors.primary, size: 24),
+                        child: const Icon(
+                          Icons.casino_rounded,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       const Column(
@@ -103,7 +112,10 @@ class _SetupScreenState extends State<SetupScreen> {
                           ),
                           Text(
                             'Shared Table Mode • Taruh HP/Tablet di tengah meja untuk simulasi chip',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -116,7 +128,10 @@ class _SetupScreenState extends State<SetupScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
                       elevation: 4,
                       shadowColor: AppColors.primary.withValues(alpha: 0.4),
                     ),
@@ -146,11 +161,15 @@ class _SetupScreenState extends State<SetupScreen> {
                             children: [
                               // 1. Jumlah Pemain
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Jumlah Pemain:',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   Text(
                                     '$_playerCount Orang',
@@ -168,17 +187,25 @@ class _SetupScreenState extends State<SetupScreen> {
                                   final isSelected = count == _playerCount;
                                   return Expanded(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
                                       child: InkWell(
-                                        onTap: () => setState(() => _playerCount = count),
+                                        onTap: () => setState(
+                                          () => _playerCount = count,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: isSelected
                                                 ? AppColors.primary
                                                 : AppColors.cardSurfaceElevated,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                             border: Border.all(
                                               color: isSelected
                                                   ? AppColors.primary
@@ -189,7 +216,9 @@ class _SetupScreenState extends State<SetupScreen> {
                                             child: Text(
                                               '$count',
                                               style: TextStyle(
-                                                color: isSelected ? Colors.white : Colors.white70,
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : Colors.white70,
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 13,
                                               ),
@@ -205,11 +234,15 @@ class _SetupScreenState extends State<SetupScreen> {
 
                               // 2. Chip Awal
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Chip / Saldo Awal per Pemain:',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   Text(
                                     '$_initialChips Chip',
@@ -223,16 +256,24 @@ class _SetupScreenState extends State<SetupScreen> {
                               ),
                               const SizedBox(height: 6),
                               Row(
-                                children: [500, 1000, 2000, 5000].map((chipVal) {
+                                children: [500, 1000, 2000, 5000].map((
+                                  chipVal,
+                                ) {
                                   final isSelected = chipVal == _initialChips;
                                   return Expanded(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
                                       child: OutlinedButton(
-                                        onPressed: () => setState(() => _initialChips = chipVal),
+                                        onPressed: () => setState(
+                                          () => _initialChips = chipVal,
+                                        ),
                                         style: OutlinedButton.styleFrom(
                                           backgroundColor: isSelected
-                                              ? AppColors.gold.withValues(alpha: 0.2)
+                                              ? AppColors.gold.withValues(
+                                                  alpha: 0.2,
+                                                )
                                               : AppColors.cardSurfaceElevated,
                                           side: BorderSide(
                                             color: isSelected
@@ -240,12 +281,16 @@ class _SetupScreenState extends State<SetupScreen> {
                                                 : AppColors.borderSubtle,
                                             width: isSelected ? 1.5 : 1,
                                           ),
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
                                         ),
                                         child: Text(
                                           '$chipVal',
                                           style: TextStyle(
-                                            color: isSelected ? AppColors.gold : Colors.white70,
+                                            color: isSelected
+                                                ? AppColors.gold
+                                                : Colors.white70,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 12,
                                           ),
@@ -259,16 +304,21 @@ class _SetupScreenState extends State<SetupScreen> {
 
                               // 3. Pengaturan Blinds
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Gunakan Blinds (SB / BB):',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   Switch(
                                     value: _blindsEnabled,
                                     activeThumbColor: AppColors.primary,
-                                    onChanged: (val) => setState(() => _blindsEnabled = val),
+                                    onChanged: (val) =>
+                                        setState(() => _blindsEnabled = val),
                                   ),
                                 ],
                               ),
@@ -292,12 +342,48 @@ class _SetupScreenState extends State<SetupScreen> {
                                       child: _buildBlindInput(
                                         label: 'Big Blind (BB)',
                                         value: _bigBlind,
-                                        onChanged: (val) => setState(() => _bigBlind = val),
+                                        onChanged: (val) =>
+                                            setState(() => _bigBlind = val),
                                       ),
                                     ),
                                   ],
                                 ),
                               ],
+                              const SizedBox(height: 14),
+
+                              // 4. Mode Pembagian Kartu
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Bagikan Kartu Virtual (Auto-Deal):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Off = Pemain pegang kartu fisik (opsional tap kursi utk input)',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Switch(
+                                    value: _autoDealCards,
+                                    activeThumbColor: AppColors.primary,
+                                    onChanged: (val) =>
+                                        setState(() => _autoDealCards = val),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -320,13 +406,17 @@ class _SetupScreenState extends State<SetupScreen> {
                           children: [
                             const Text(
                               'Nama Pemain:',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Expanded(
                               child: ListView.separated(
                                 itemCount: _playerCount,
-                                separatorBuilder: (context, index) => const SizedBox(height: 6),
+                                separatorBuilder: (context, index) =>
+                                    const SizedBox(height: 6),
                                 itemBuilder: (context, index) {
                                   return Row(
                                     children: [
@@ -335,8 +425,12 @@ class _SetupScreenState extends State<SetupScreen> {
                                         height: 26,
                                         decoration: BoxDecoration(
                                           color: AppColors.cardSurfaceElevated,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: AppColors.borderSubtle),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.borderSubtle,
+                                          ),
                                         ),
                                         child: Center(
                                           child: Text(
@@ -359,16 +453,20 @@ class _SetupScreenState extends State<SetupScreen> {
                                             fontWeight: FontWeight.w600,
                                           ),
                                           decoration: InputDecoration(
-                                            hintText: 'Nama Player ${index + 1}',
+                                            hintText:
+                                                'Nama Player ${index + 1}',
                                             filled: true,
-                                            fillColor: AppColors.cardSurfaceElevated,
-                                            contentPadding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
-                                            ),
+                                            fillColor:
+                                                AppColors.cardSurfaceElevated,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 8,
+                                                ),
                                             isDense: true,
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                               borderSide: const BorderSide(
                                                 color: AppColors.borderSubtle,
                                               ),
@@ -425,7 +523,9 @@ class _SetupScreenState extends State<SetupScreen> {
                           : AppColors.cardSurfaceElevated,
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : AppColors.borderSubtle,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.borderSubtle,
                       ),
                     ),
                     child: Center(
@@ -434,7 +534,9 @@ class _SetupScreenState extends State<SetupScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? AppColors.primary : Colors.white70,
+                          color: isSelected
+                              ? AppColors.primary
+                              : Colors.white70,
                         ),
                       ),
                     ),
